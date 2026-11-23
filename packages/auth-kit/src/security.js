@@ -71,6 +71,21 @@ export function generateRandomPassword(length = 12) {
 }
 
 /**
+ * 构造标准登录 payload（qygl/wygl/新项目通用字段）。
+ * 提取为顶层纯函数，既可从包顶层导入，也可由 createSecurity() 返回值调用。
+ * 业务可选择使用或自行构造。
+ */
+export function buildLoginPayload(user) {
+  return {
+    id: user.id,
+    username: user.username,
+    role: user.roleName || user.role || '',
+    pwd: pwdFingerprint(user.password),
+    ver: user.tokenVersion || 0
+  };
+}
+
+/**
  * 创建 JWT 工具实例（依赖注入密钥）。
  * @param {object} config
  * @param {string} config.secret 当前 JWT 密钥（必填）
@@ -105,18 +120,6 @@ export function createSecurity(config = {}) {
     }
   };
 
-  /**
-   * 构造标准登录 payload（qygl/wygl 通用字段）。
-   * 业务可选择使用或自行构造。
-   */
-  const buildLoginPayload = (user) => ({
-    id: user.id,
-    username: user.username,
-    role: user.roleName || user.role || '',
-    pwd: pwdFingerprint(user.password),
-    ver: user.tokenVersion || 0
-  });
-
   return { signToken, verifyToken, buildLoginPayload, secret, expires };
 }
 
@@ -127,5 +130,5 @@ export function defaultSecurity(config = {}) {
 
 export default {
   pwdFingerprint, isHashed, hashPassword, verifyPassword,
-  validatePassword, generateRandomPassword, createSecurity, defaultSecurity
+  validatePassword, generateRandomPassword, createSecurity, defaultSecurity, buildLoginPayload
 };

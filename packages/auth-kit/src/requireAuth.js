@@ -64,10 +64,8 @@ export function createRequireAuth(config = {}) {
         try {
           const user = await findUserByUsername(realName);
           if (user) {
-            if (user.password !== undefined && user.pwdFingerprint !== undefined) {
-              if (user.pwdFingerprint !== decoded.pwd) {
-                return res.status(401).json({ success: false, message: M.pwdChanged });
-              }
+            if (user.pwdFingerprint !== undefined && decoded.pwd !== undefined && user.pwdFingerprint !== decoded.pwd) {
+              return res.status(401).json({ success: false, message: M.pwdChanged });
             }
             if (user.tokenVersion !== undefined && decoded.ver !== undefined && user.tokenVersion !== decoded.ver) {
               return res.status(401).json({ success: false, message: M.otherDevice });

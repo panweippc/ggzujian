@@ -1,0 +1,15 @@
+{
+  "name": "my-project-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "@panweippc/auth-kit": "file:../../../packages/auth-kit",
+    "express": "^4.19.0",
+    "cors": "^2.8.5",
+    "mysql2": "^3.9.0"
+  }
+}

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   pwdFingerprint, hashPassword, verifyPassword, validatePassword, generateRandomPassword,
-  createSecurity, createCaptcha, genCaptchaSvg, createAudit, createRequireAuth
+  createSecurity, createCaptcha, genCaptchaSvg, createAudit, createRequireAuth, buildLoginPayload
 } from '../src/index.js';
 
 test('密码指纹：改密前后不同', () => {
@@ -31,6 +31,18 @@ test('随机密码满足复杂度', () => {
   const p = generateRandomPassword(12);
   assert.equal(p.length, 12);
   assert.equal(validatePassword(p, 'nobody'), null);
+});
+
+test('buildLoginPayload 顶层导出可用（新项目文档/示例依赖此路径）', () => {
+  const { buildLoginPayload: fromInstance } = createSecurity({ secret: 'k' });
+  const user = { id: 1, username: 'admin', password: hashPassword('Test@2026pass'), roleName: '管理员', tokenVersion: 3 };
+  const a = buildLoginPayload(user);
+  const b = fromInstance(user);
+  assert.deepEqual(a, b);
+  assert.equal(a.username, 'admin');
+  assert.equal(a.role, '管理员');
+  assert.equal(a.ver, 3);
+  assert.equal(a.pwd, pwdFingerprint(user.password));
 });
 
 test('JWT 签发/校验与无感轮换', () => {
@@ -68,11 +80,18 @@ test('审计日志：pool 注入 + 默认值写入', async () => {
   const calls = [];
   const pool = { execute: async (sql, values) => { calls.push({ sql, values }); return [{ affectedRows: 1 }]; } };
   const audit = createAudit();
-  await audit.createOperationLog(pool, { username: '张三', action: 'login', module: 'auth', detail: 'ok' });
+  await audit.createOperationLog(pool, { userId: 7, username: '张三', action: 'login', module: 'auth', detail: 'ok', ipAddress: '1.2.3.4' });
   assert.equal(calls.length, 1);
   assert.ok(calls[0].sql.includes('INSERT INTO `operation_logs`'));
   assert.equal(calls[0].values[1], '张三');
   assert.equal(calls[0].values[2], 'login');
+  // 回归：列与值必须一一对齐（曾把 NOW() 错放第 1 槽导致整体错位）
+  const cols = calls[0].sql.split('(')[1].split(')')[0].split(', ');
+  assert.equal(cols[0], 'userId');
+  assert.equal(cols[cols.length - 1], 'createdAt');
+  assert.ok(calls[0].sql.trim().endsWith(', NOW())'), '最后一列 createdAt 必须用 NOW()');
+  assert.equal(calls[0].values[0], 7, 'userId 应写入第 1 个值槽');
+  assert.equal(calls[0].values[calls[0].values.length - 1], '1.2.3.4', 'ipAddress 应在倒数第 1 个值槽');
 });
 
 test('审计日志：自定义表名/列名映射', async () => {
@@ -114,4 +133,22 @@ test('鉴权中间件：白名单放行 + 无 token 401 + 正常注入 req.user'
   assert.equal(ok, true);
   assert.equal(req.user.username, 'emp_张三_5');
   assert.equal(req.user.roleName, '系统管理员');
+});
+
+test('鉴权中间件：README 示例的 pwdFingerprint 单独返回也能触发改密拦截', async () => {
+  const { createSecurity } = await import('../src/security.js');
+  const s = createSecurity({ secret: 'k' });
+  // README 推荐用法：findUserByUsername 只返回 { pwdFingerprint, tokenVersion }（不含 password 字段）
+  const { requireAuth } = createRequireAuth({
+    verifyToken: s.verifyToken,
+    findUserByUsername: async () => ({ pwdFingerprint: 'NEWFINGERPRINT___', tokenVersion: 0 })
+  });
+  const mkRes = () => { const r = { code: 0, body: null }; r.status = (c) => { r.code = c; return r; }; r.json = (b) => { r.body = b; return r; }; return r; };
+  // token 里携带旧指纹
+  const token = s.signToken({ username: 'admin', pwd: 'OLDFINGERPRINT__', ver: 0 });
+  const req = { method: 'GET', path: '/users', headers: { authorization: 'Bearer ' + token } };
+  const r = mkRes();
+  await requireAuth(req, r, () => {});
+  assert.equal(r.code, 401);
+  assert.equal(r.body.message, '密码已修改，请重新登录');
 });

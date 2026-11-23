@@ -76,7 +76,7 @@ const text = computed<LoginText>(() => ({
   usernamePlaceholder: '请输入用户名',
   passwordPlaceholder: '请输入密码',
   captchaPlaceholder: '请输入验证码',
-  submit: '登 录',
+  submit: props.config.submitText || '登 录',
   refreshCaptcha: '点击获取',
   ...props.text
 }));

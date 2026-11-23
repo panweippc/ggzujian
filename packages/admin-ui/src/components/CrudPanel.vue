@@ -10,7 +10,7 @@
                        :width="col.width" :min-width="col.minWidth" :align="col.align || 'left'">
         <template #default="scope">
           <slot :name="'cell-' + col.prop" :row="scope.row" :value="scope.row[col.prop]">
-            {{ formatCell(scope.row[col.prop], col) }}
+            {{ formatCell(scope.row[col.prop], col, scope.row) }}
           </slot>
         </template>
       </el-table-column>
@@ -126,9 +126,9 @@ async function remove(row: any) {
     load();
   } catch (e: any) { if (e !== 'cancel' && e?.message) ElMessage.error(e.message); }
 }
-function formatCell(value: any, col: CrudColumn) {
-  return col.formatter ? col.formatter(value, value) : (value ?? '—');
-}
+function formatCell(value: any, col: CrudColumn, row: any) {
+    return col.formatter ? col.formatter(value, row) : (value ?? '—');
+  }
 watch([page, pageSize], load);
 onMounted(load);
 defineExpose({ load, rows });

@@ -25,10 +25,11 @@ export function createAudit(config = {}) {
   const onError = config.onError ?? ((msg, e) => console.error(msg, e?.message));
   const cols = [C.userId, C.username, C.action, C.module, C.targetId, C.targetName,
     C.detail, C.beforeValue, C.afterValue, C.ipAddress, C.createdAt];
-  const ph = cols.map(() => '?').join(', ');
-  const insertSql = `INSERT INTO \`${table}\` (${cols.join(', ')}) VALUES (${ph.replace('?', 'NOW()')})`;
-  // 上面 replace 把第一个占位替换为 NOW()；重算值数组占位数量
-  const valueCount = cols.length - 1;
+  // createdAt 放最后一列，用 NOW() 填；其余列用占位符，确保列与值一一对齐
+  // （旧实现把 NOW() 放到第一个占位，导致 11 列整体错位一行）
+  const valueCols = cols.slice(0, -1);
+  const valueCount = valueCols.length;
+  const insertSql = `INSERT INTO \`${table}\` (${cols.join(', ')}) VALUES (${valueCols.map(() => '?').join(', ')}, NOW())`;
 
   const serialize = (v) => {
     if (v === null || v === undefined) return null;
