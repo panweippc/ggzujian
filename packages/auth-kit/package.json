@@ -29,7 +29,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git@github.com:panweippc/shared-pkgs.git"
+    "url": "git@github.com:panweippc/ggzujian.git"
   },
   "license": "MIT",
   "keywords": ["auth", "jwt", "captcha", "audit", "express", "middleware"]
