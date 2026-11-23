@@ -1,0 +1,13 @@
+{
+  "name": "shared-pkgs",
+  "version": "1.0.0",
+  "private": true,
+  "description": "qygl OA 与 wygl 物业共用的公共模块 Monorepo：认证安全(auth-kit) + 管理后台前端(admin-ui)",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "test:auth-kit": "node --test packages/auth-kit/test/*.test.js"
+  },
+  "license": "MIT"
+}

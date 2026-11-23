@@ -1,0 +1,36 @@
+{
+  "name": "@panweippc/auth-kit",
+  "version": "1.0.0",
+  "description": "通用后端认证与安全工具包：JWT/密码/验证码/审计日志/安全告警/鉴权中间件工厂。零业务耦合，通过依赖注入适配任意项目。",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./security": "./src/security.js",
+    "./captcha": "./src/captcha.js",
+    "./audit": "./src/audit.js",
+    "./require-auth": "./src/requireAuth.js",
+    "./security-alert": "./src/security-alert.js"
+  },
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "dotenv": "^16.4.5"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:panweippc/shared-pkgs.git"
+  },
+  "license": "MIT",
+  "keywords": ["auth", "jwt", "captcha", "audit", "express", "middleware"]
+}
