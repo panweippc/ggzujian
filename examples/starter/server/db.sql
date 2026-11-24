@@ -1,5 +1,6 @@
 -- 新项目最小表结构：公共包不建表，由业务项目自己创建
 -- 密码用 bcrypt 哈希，可通过 node -e "import('@panweippc/auth-kit').then(m=>console.log(m.hashPassword('你的密码')))" 生成
+-- ⚠️ 导入必须带编码参数：mysql -u root -p --default-character-set=utf8mb4 my_project < db.sql
 
 CREATE TABLE IF NOT EXISTS users (
   id INT AUTO_INCREMENT PRIMARY KEY,

@@ -1,18 +1,54 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import LoginView from './views/LoginView.vue';
+import MainLayout from './layout/MainLayout.vue';
 import HomeView from './views/HomeView.vue';
+import SystemManagementView from './views/SystemManagementView.vue';
+import OperationLogView from './views/OperationLogView.vue';
+import ProfileView from './views/ProfileView.vue';
+import ChangePasswordView from './views/ChangePasswordView.vue';
+import SecuritySettingsView from './views/SecuritySettingsView.vue';
+import SecurityAlertView from './views/SecurityAlertView.vue';
+import MessageCenterView from './views/MessageCenterView.vue';
+import ComponentsView from './views/ComponentsView.vue';
+import OnboardingView from './views/OnboardingView.vue';
+import MonitorView from './views/MonitorView.vue';
+import ConfigView from './views/ConfigView.vue';
+import TaskView from './views/TaskView.vue';
+import ApiDocsView from './views/ApiDocsView.vue';
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/login', component: LoginView },
-    { path: '/', component: HomeView, meta: { requiresAuth: true } }
+    { path: '/login', name: 'login', component: LoginView },
+    { path: '/onboarding', name: 'onboarding', component: OnboardingView, meta: { requiresAuth: true, title: '新手引导' } },
+    {
+      path: '/',
+      component: MainLayout,
+      meta: { requiresAuth: true },
+      children: [
+        { path: '', name: 'home', component: HomeView, meta: { title: '工作台' } },
+        { path: 'system', name: 'system', component: SystemManagementView, meta: { title: '系统管理' } },
+        { path: 'system/users', redirect: '/system' },
+        { path: 'logs', name: 'logs', component: OperationLogView, meta: { title: '操作日志' } },
+        { path: 'profile', name: 'profile', component: ProfileView, meta: { title: '个人中心' } },
+        { path: 'change-password', name: 'changePassword', component: ChangePasswordView, meta: { title: '修改密码' } },
+        { path: 'security', name: 'security', component: SecuritySettingsView, meta: { title: '安全设置' } },
+        { path: 'security-alerts', name: 'securityAlerts', component: SecurityAlertView, meta: { title: '安全事件监控' } },
+        { path: 'messages', name: 'messages', component: MessageCenterView, meta: { title: '消息中心' } },
+        { path: 'components', name: 'components', component: ComponentsView, meta: { title: '公共组件' } },
+        { path: 'monitor', name: 'monitor', component: MonitorView, meta: { title: '系统监控' } },
+        { path: 'config', name: 'config', component: ConfigView, meta: { title: '配置中心' } },
+        { path: 'tasks', name: 'tasks', component: TaskView, meta: { title: '定时任务' } },
+        { path: 'api-docs', name: 'apiDocs', component: ApiDocsView, meta: { title: '接口文档' } },
+      ]
+    }
   ]
 });
 
 router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('token');
   if (to.meta.requiresAuth && !token) return next('/login');
+  if (to.path === '/login' && token) return next('/');
   next();
 });
 

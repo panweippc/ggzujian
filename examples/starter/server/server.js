@@ -13,6 +13,8 @@ import {
   verifyPassword, validatePassword, pwdFingerprint, buildLoginPayload,
   hashPassword
 } from '@panweippc/auth-kit';
+import systemRouter from './routes/system.js';
+import commonRouter from './routes/common.js';
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST || '127.0.0.1',
@@ -43,7 +45,8 @@ const { requireAuth } = createRequireAuth({
   publicPaths: [
     { method: 'POST', path: '/login' },
     { method: 'GET', path: '/captcha' },
-    { method: 'GET', path: '/health' }
+    { method: 'GET', path: '/health' },
+    { method: 'GET', path: '/weather' }
   ],
   findUserByUsername: async (username) => {
     const [rows] = await pool.execute('SELECT password, token_version FROM users WHERE username = ?', [username]);
@@ -54,8 +57,12 @@ const { requireAuth } = createRequireAuth({
 });
 
 const app = express();
+// 供路由模块共享数据库连接池（qygl 约定：req.app.locals.pool）
+app.locals.pool = pool;
 app.use(cors());
 app.use(express.json());
+// 静态托管上传的头像（个人中心用）
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // —— 公开接口 ——
 app.get('/api/captcha', (req, res) => {
@@ -65,18 +72,63 @@ app.get('/api/captcha', (req, res) => {
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', db: 'up' }));
 
+// 天气代理：登录页直连国外 API 常被墙，改由服务端转发（Node 18+ 原生 fetch）
+app.get('/api/weather', async (req, res) => {
+  const lat = process.env.WEATHER_LAT || '40.8424';
+  const lon = process.env.WEATHER_LON || '111.7490';
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&timezone=Asia%2FShanghai`;
+  try {
+    const resp = await fetch(url, { signal: AbortSignal.timeout(6000) });
+    if (!resp.ok) throw new Error('upstream ' + resp.status);
+    const json = await resp.json();
+    const cur = json?.current;
+    if (!cur) throw new Error('no current');
+    res.json({ success: true, data: { temp: Math.round(cur.temperature_2m), code: cur.weather_code } });
+  } catch (e) {
+    res.json({ success: false, message: 'weather unavailable', data: null });
+  }
+});
+
+// ===== 登录失败锁定（内存计数，防暴力破解）=====
+// 生产环境建议换成 Redis；骨架用内存演示，重启清零。
+const LOGIN_MAX_FAILS = +(process.env.LOGIN_MAX_FAILS || 5);
+const LOGIN_LOCK_MS = +(process.env.LOGIN_LOCK_MS || 15 * 60 * 1000);
+const loginFails = new Map(); // key: username|ip → { count, firstAt, lockedUntil }
+const failKey = (u, ip) => `${u}|${ip}`;
+const cleanFails = () => { const now = Date.now(); for (const [k, v] of loginFails) if (v.lockedUntil && v.lockedUntil < now && now - v.firstAt > LOGIN_LOCK_MS * 2) loginFails.delete(k); };
+setInterval(cleanFails, 60_000).unref?.();
+
 app.post('/api/login', async (req, res) => {
   const { username, password, captcha: code, captchaToken } = req.body;
   const c = captcha.verify(captchaToken, code);
   if (c === 'expired') return res.status(401).json({ success: false, message: '验证码已过期' });
   if (c === 'wrong') return res.status(401).json({ success: false, message: '验证码错误' });
 
+  // 锁定检查
+  const key = failKey(username, req.ip);
+  const st = loginFails.get(key);
+  if (st?.lockedUntil && Date.now() < st.lockedUntil) {
+    const mins = Math.ceil((st.lockedUntil - Date.now()) / 60000);
+    alert.writeSecurityAlert({ level: 'HIGH', type: 'login_locked', username, ip: req.ip });
+    return res.status(423).json({ success: false, locked: true, retryAfterMin: mins, message: `账号已锁定，请 ${mins} 分钟后重试` });
+  }
+
   const [rows] = await pool.execute('SELECT * FROM users WHERE username = ?', [username]);
   const user = rows[0];
   if (!user || !verifyPassword(password, user.password)) {
-    alert.writeSecurityAlert({ level: 'WARN', type: 'login_fail', username, ip: req.ip });
-    return res.status(401).json({ success: false, message: '账号或密码错误' });
+    const rec = loginFails.get(key) || { count: 0, firstAt: Date.now(), lockedUntil: 0 };
+    rec.count += 1;
+    if (rec.count >= LOGIN_MAX_FAILS) {
+      rec.lockedUntil = Date.now() + LOGIN_LOCK_MS;
+      alert.writeSecurityAlert({ level: 'HIGH', type: 'login_brute_force', username, ip: req.ip, detail: `连续 ${rec.count} 次登录失败，账号已锁定 ${LOGIN_LOCK_MS / 60000} 分钟` });
+    } else {
+      alert.writeSecurityAlert({ level: 'WARN', type: 'login_fail', username, ip: req.ip });
+    }
+    loginFails.set(key, rec);
+    const left = Math.max(0, LOGIN_MAX_FAILS - rec.count);
+    return res.status(401).json({ success: false, message: '账号或密码错误', remaining: left, locked: left === 0 });
   }
+  loginFails.delete(key); // 登录成功清除失败记录
   const token = signToken(buildLoginPayload({
     id: user.id, username: user.username, password: user.password,
     roleName: user.role, tokenVersion: user.token_version || 0
@@ -98,8 +150,36 @@ app.post('/api/users', requireAuth, async (req, res) => {
   res.json({ success: true, message: '创建成功' });
 });
 
+// IP 白名单校验（登录页可公开访问；未启用白名单时放行）
+app.get('/api/ip-check', async (req, res) => {
+  try {
+    const [[cfg]] = await pool.execute("SELECT configValue FROM app_configs WHERE configKey='security.ipWhitelistEnabled'");
+    const enabled = String(cfg?.configValue || '').includes('true') || cfg?.configValue === '1';
+    if (!enabled) return res.json({ success: true, allowed: true });
+    const clientIp = (req.ip || '').replace('::ffff:', '');
+    const [rows] = await pool.execute('SELECT ip FROM ip_whitelist');
+    const inCidr = (ip, cidr) => {
+      if (!cidr.includes('/')) return ip === cidr;
+      const [base, bits] = cidr.split('/');
+      const toLong = (s) => s.split('.').reduce((a, n) => (a << 8) + (parseInt(n, 10) || 0), 0) >>> 0;
+      const mask = (0xffffffff << (32 - parseInt(bits, 10))) >>> 0;
+      return (toLong(ip) & mask) === (toLong(base) & mask);
+    };
+    res.json({ success: true, allowed: rows.some((r) => inCidr(clientIp, r.ip)), ip: clientIp });
+  } catch { res.json({ success: true, allowed: true }); }
+});
+
 // —— 挂载鉴权：之后的接口都需要 token ——
 app.use('/api', requireAuth);
+
+// 系统管理接口（用户/角色/菜单/部门/备份/个人中心）—— 从 qygl 迁移
+app.use('/api', systemRouter);
+
+// 公共组件接口（字典/配置/定时任务/会话/IP白名单/监控/TOTP）
+app.use('/api', commonRouter);
+
+// 头像读取是公开静态资源，个人中心 <el-avatar> 直接加载，无需 token
+// （上传接口在 systemRouter 内，受 requireAuth 保护）
 
 app.get('/api/users', async (req, res) => {
   const [rows] = await pool.execute('SELECT id, username, role FROM users');
@@ -118,4 +198,4 @@ app.get('/api/logs', async (req, res) => {
   res.json({ success: true, data: rows, total });
 });
 
-app.listen(3010, () => console.log('starter server listening on http://localhost:3010'));
+app.listen(3011, () => console.log('starter server listening on http://localhost:3011'));

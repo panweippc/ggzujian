@@ -1,0 +1,21 @@
+:root {
+  /* ===== qygl 紫蓝渐变主题 ===== */
+  --bg-color: #eef1f9;
+  --primary-color: #667eea;
+  --primary-gradient-start: #667eea;
+  --primary-gradient-end: #764ba2;
+  --primary-light: #8b9df0;
+  --text-color: #303133;
+  --text-secondary: #909399;
+  --border-color: #e4e7ed;
+  --sidebar-width: 200px;
+
+  /* Element Plus 主色覆盖：按钮/tag/分页/选中态统一紫蓝 */
+  --el-color-primary: #667eea;
+  --el-color-primary-light-3: #8b9df0;
+  --el-color-primary-light-5: #aeb9f4;
+  --el-color-primary-light-7: #d2d9f8;
+  --el-color-primary-light-8: #e3e8fb;
+  --el-color-primary-light-9: #f1f3fd;
+  --el-color-primary-dark-2: #5262d8;
+}
