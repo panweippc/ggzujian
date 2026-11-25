@@ -1,0 +1,45 @@
+/**
+ * 多端适配全局样式（底座第 7 部分）
+ * 断点：≥1200 桌面 / 900-1200 平板 / <900 移动（侧边栏转抽屉，栅格单列）
+ * 只做通用布局降级，业务页面仍可用 Element Plus 的 :xs/:sm 精细控制。
+ */
+
+/* ===== 平板：收窄栅格间距，隐藏顶栏次要文案 ===== */
+@media (max-width: 1200px) {
+  .top-actions .kbd-hint { display: none; }
+  .components-view .cv-body,
+  .base-data-view .bd-body { padding: 16px; }
+}
+
+/* ===== 移动端：单列栅格、表格可横向滚动、顶栏精简 ===== */
+@media (max-width: 900px) {
+  .el-col { max-width: 100% !important; flex: 0 0 100% !important; }
+
+  .topbar { padding: 0 12px; }
+  .brand-name { display: none; }
+  .top-actions { margin-right: 8px; }
+  .top-actions .top-action span:not(.act-ico) { display: none; }
+  .top-right .uname { display: none; }
+
+  /* 表格在窄屏允许横向滚动，避免列被压垮 */
+  .el-table { min-width: 640px; }
+  .el-table__body-wrapper { overflow-x: auto; }
+
+  .pane-head { flex-direction: column; align-items: stretch; }
+  .head-actions { flex-wrap: wrap; }
+  .el-dialog, .el-dialog__wrapper { width: 92% !important; }
+  .el-drawer { max-width: 92vw !important; }
+}
+
+/* ===== 超窄屏：对话框全宽、分页精简 ===== */
+@media (max-width: 600px) {
+  .el-dialog { width: 96% !important; }
+  .el-pagination { flex-wrap: wrap; justify-content: center; }
+  .el-radio-group.type-switch { display: flex; flex-wrap: wrap; }
+}
+
+/* ===== 打印：隐藏导航与操作区 ===== */
+@media print {
+  .sidebar, .topbar, .tab-bar, .head-actions, .el-button, .el-pagination { display: none !important; }
+  .content { overflow: visible; }
+}

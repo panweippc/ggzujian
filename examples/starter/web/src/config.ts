@@ -61,6 +61,8 @@ export const SIDE_MENUS = [
   { id: 10, name: '接口文档', path: '/api-docs', icon: 'book' },
   { id: 11, name: '文件服务', path: '/files', icon: 'folder' },
   { id: 12, name: '消息通道', path: '/message-channels', icon: 'bell' },
+  { id: 13, name: '基础数据', path: '/base-data', icon: 'database' },
+  { id: 14, name: '组件文档', path: '/component-docs', icon: 'book' },
 ];
 
 // ============ 系统管理 - Tab 配置 ============

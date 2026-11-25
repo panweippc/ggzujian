@@ -162,6 +162,52 @@ export function createLoginLimiter() {
   });
 }
 
+/**
+ * ⑤ 维护模式中间件：开启后除健康探针、登录、维护开关本身外，全部返回 503。
+ * 状态存 runtime 配置（DB），带缓存，切换即时生效。
+ */
+export function maintenanceMiddleware() {
+  const BYPASS = ['/api/health', '/api/maintenance', '/api/login', '/api/captcha', '/metrics'];
+  return async (req, res, next) => {
+    const path = req.originalUrl?.split('?')[0] || req.path;
+    if (BYPASS.includes(path)) return next();
+    const pool = req.app?.locals?.pool;
+    if (!pool) return next();
+    try {
+      const [[row]] = await pool.execute(
+        "SELECT configValue FROM app_configs WHERE configKey='runtime.maintenance.enabled' AND env='runtime' LIMIT 1"
+      );
+      if (String(row?.configValue || '').toLowerCase() === 'true') {
+        return res.status(503).json({
+          success: false, message: '系统维护中，请稍后再试', code: 'MAINTENANCE', traceId: req.traceId,
+        });
+      }
+    } catch { /* 配置读取失败则放行，避免误锁死系统 */ }
+    next();
+  };
+}
+
+/**
+ * ⑥ 接口版本头：响应回传当前 API 版本，并对弃用版本（X-API-Version=deprecated）记录告警。
+ */
+export function versionHeaderMiddleware() {
+  const version = process.env.API_VERSION || 'v1';
+  return (req, res, next) => {
+    res.setHeader('X-API-Version', version);
+    const requested = req.headers['x-api-version'];
+    if (requested && requested !== version && req.app?.locals?.alert) {
+      try {
+        req.app.locals.alert.writeSecurityAlert({
+          level: 'INFO', type: 'api_version_mismatch',
+          detail: `请求版本 ${requested}，当前 ${version}，路径 ${req.path}`,
+          ip: req.ip, traceId: req.traceId,
+        });
+      } catch { /* 忽略 */ }
+    }
+    next();
+  };
+}
+
 /** 供 /monitor 读取的网关统计 */
 export function getGatewayStats() {
   const now = Date.now();

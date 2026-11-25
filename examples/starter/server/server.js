@@ -5,7 +5,6 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import mysql from 'mysql2/promise';
 import path from 'node:path';
 import {
   createSecurity, createCaptcha, createRequireAuth,
@@ -17,18 +16,25 @@ import systemRouter from './routes/system.js';
 import commonRouter from './routes/common.js';
 import fileRouter from './routes/files.js';
 import messageRouter from './routes/messages.js';
+import baseDataRouter from './routes/base-data.js';
+import recycleRouter, { purgeExpired } from './routes/recycle.js';
+import auditExtRouter from './routes/audit-ext.js';
+import gatewayExtRouter from './routes/gateway-ext.js';
+import enterpriseRouter from './routes/enterprise.js';
 import {
-  traceMiddleware, auditContextMiddleware, timingMiddleware, createRateLimiters, createLoginLimiter
+  traceMiddleware, auditContextMiddleware, timingMiddleware, createRateLimiters, createLoginLimiter,
+  maintenanceMiddleware, versionHeaderMiddleware,
 } from './middleware/gateway.js';
+import { idempotencyMiddleware } from './middleware/idempotency.js';
 import { writeAudit } from './middleware/audit.js';
+import { autoAuditMiddleware } from './middleware/auto-audit.js';
+import { createDataSource } from './services/datasource.js';
 
-const pool = mysql.createPool({
-  host: process.env.DB_HOST || '127.0.0.1',
-  port: +(process.env.DB_PORT || 3306),
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME
-});
+// 统一数据接入层：业务通过 dataSource.query/execute/transaction 访问数据，屏蔽底层驱动差异。
+// app.locals.pool 指向原生连接池，保持已有路由（req.app.locals.pool.execute）零改动兼容。
+const dataSource = createDataSource();
+const pool = dataSource.raw;
+console.log(`[datasource] driver=${dataSource.driver}${dataSource.__placeholder ? ' (预留适配器，尚未接入真实驱动)' : ''}`);
 
 // ① JWT
 const { signToken, verifyToken } = createSecurity({
@@ -68,8 +74,10 @@ app.locals.pool = pool;
 app.locals.alert = alert; // 供网关慢接口告警 / 消息中心复用
 // ⭐ 统一网关（底座第3部分）：CORS → TraceID → 限流 → 计时 → 审计上下文 → body 解析
 // 暴露 X-Request-Id 给前端，便于全链路检索
-app.use(cors({ exposedHeaders: ['X-Request-Id', 'Retry-After'] }));
+app.use(cors({ exposedHeaders: ['X-Request-Id', 'Retry-After', 'X-API-Version'] }));
 app.use(traceMiddleware);
+app.use(versionHeaderMiddleware());
+app.use(maintenanceMiddleware());
 app.use(createRateLimiters());
 app.use(timingMiddleware((rec) => {
   // 慢接口告警：走现有安全告警通道（有 webhook 就推，没有只落日志文件）
@@ -80,7 +88,11 @@ app.use(timingMiddleware((rec) => {
   });
 }));
 app.use(express.json({ limit: '10mb' }));
+app.use(idempotencyMiddleware());
 app.use(auditContextMiddleware);
+// ⭐ 全留痕（方案A）：网关层自动记录所有写操作，路由无需手动埋点。
+// 放在 auditContextMiddleware 之后以确保能采集请求/响应；显式 writeAudit 的请求会自动去重。
+app.use(autoAuditMiddleware());
 // 静态托管上传的文件（头像 + 统一文件服务）
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
@@ -200,9 +212,30 @@ app.use('/api', systemRouter);
 // 公共组件接口（字典/配置/定时任务/会话/IP白名单/监控/TOTP）
 app.use('/api', commonRouter);
 
+// 公共基础数据（组织机构 / 行政区划 / 行业分类）
+app.use('/api', baseDataRouter);
+
 // 统一文件服务（本地存储 + 对象存储预留适配层）与统一消息通道（B档预留）
 app.use('/api', fileRouter);
 app.use('/api', messageRouter);
+
+// 全局回收站（软删快照 / 恢复 / 彻底清除 / 过期自动清理）
+app.use('/api', recycleRouter);
+
+// 审计延伸（哈希链校验 / 归档 / 增强查询 / 统计）
+app.use('/api', auditExtRouter);
+
+// 网关运维（Prometheus /metrics 公开；API文档 / 维护模式在 /api 下）
+app.use(gatewayExtRouter);
+
+// 业务底座补全（字典多语言 / 消息回执 / 分片上传 / 任务历史 / 数据权限规则）
+app.use('/api', enterpriseRouter);
+// 回收站过期自动清除：每小时扫描一次，删除超过保留期的快照及其物理文件
+setInterval(() => {
+  purgeExpired(pool).then((n) => {
+    if (n > 0) console.log(`[recycle] 自动清除 ${n} 条过期记录`);
+  }).catch(() => {});
+}, 60 * 60 * 1000).unref?.();
 
 // 头像读取是公开静态资源，个人中心 <el-avatar> 直接加载，无需 token
 // （上传接口在 systemRouter 内，受 requireAuth 保护）

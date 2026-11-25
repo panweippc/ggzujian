@@ -18,6 +18,8 @@ import TaskView from './views/TaskView.vue';
 import ApiDocsView from './views/ApiDocsView.vue';
 import FileServiceView from './views/FileServiceView.vue';
 import MessageChannelView from './views/MessageChannelView.vue';
+import BaseDataView from './views/BaseDataView.vue';
+import ComponentDocsView from './views/ComponentDocsView.vue';
 
 const router = createRouter({
   history: createWebHistory(),
@@ -45,6 +47,8 @@ const router = createRouter({
         { path: 'api-docs', name: 'apiDocs', component: ApiDocsView, meta: { title: '接口文档' } },
         { path: 'files', name: 'files', component: FileServiceView, meta: { title: '文件服务' } },
         { path: 'message-channels', name: 'messageChannels', component: MessageChannelView, meta: { title: '消息通道' } },
+        { path: 'base-data', name: 'baseData', component: BaseDataView, meta: { title: '基础数据' } },
+        { path: 'component-docs', name: 'componentDocs', component: ComponentDocsView, meta: { title: '组件与接口文档' } },
       ]
     }
   ]

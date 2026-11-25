@@ -5,6 +5,7 @@ import zhCn from 'element-plus/es/locale/lang/zh-cn';
 import 'element-plus/dist/index.css';
 import './assets/styles/variables.css';
 import './assets/styles/themes.css';
+import './assets/styles/responsive.css';
 import axios from 'axios';
 import {
   createTokenStore, installAuthInterceptors, installFetchToken, startIdleDetector

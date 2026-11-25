@@ -121,11 +121,30 @@ export const getSecurityAlerts = (p: { level?: string; type?: string; limit?: nu
 
 // ===== 数据字典 =====
 export interface DictItem { id: number; category: string; label: string; value: string; sort: number; status: number; remark: string | null }
+export interface DictCategory { id: number; code: string; name: string; description: string | null; sort: number; status: number }
 export const getDictItems = (category?: string, all = false) =>
   api.get('/dict-items', { params: { category, all: all ? '1' : '0' } }).then((r) => r.data);
+export const batchGetDictItems = (categories: string[], all = false) =>
+  api.post('/dict-items/batch', { categories, all }).then((r) => r.data);
 export const createDictItem = (form: Partial<DictItem>) => api.post('/dict-items', form).then((r) => r.data);
 export const updateDictItem = (id: number, form: Partial<DictItem>) => api.put(`/dict-items/${id}`, form).then((r) => r.data);
 export const deleteDictItem = (id: number) => api.delete(`/dict-items/${id}`).then((r) => r.data);
+export const getDictCategories = () => api.get('/dict-categories').then((r) => r.data);
+export const createDictCategory = (form: Partial<DictCategory>) => api.post('/dict-categories', form).then((r) => r.data);
+export const updateDictCategory = (id: number, form: Partial<DictCategory>) => api.put(`/dict-categories/${id}`, form).then((r) => r.data);
+export const deleteDictCategory = (id: number) => api.delete(`/dict-categories/${id}`).then((r) => r.data);
+
+// ===== 公共基础数据 =====
+export interface BaseDataItem {
+  id: number; type: string; code: string; name: string; parentCode: string | null;
+  sort: number; status: number; remark: string | null; children?: BaseDataItem[];
+}
+export const getBaseData = (params?: { type?: string; parentCode?: string; all?: boolean }) =>
+  api.get('/base-data', { params: { ...params, all: params?.all ? '1' : undefined } }).then((r) => r.data);
+export const getBaseDataTree = (type: string) => api.get('/base-data/tree', { params: { type } }).then((r) => r.data);
+export const createBaseData = (form: Partial<BaseDataItem>) => api.post('/base-data', form).then((r) => r.data);
+export const updateBaseData = (id: number, form: Partial<BaseDataItem>) => api.put(`/base-data/${id}`, form).then((r) => r.data);
+export const deleteBaseData = (id: number) => api.delete(`/base-data/${id}`).then((r) => r.data);
 
 // ===== 配置中心 =====
 export interface AppConfig { id: number; configKey: string; configValue: string; category: string; env: string; version: number; description: string | null; updatedBy: string | null; updatedAt: string }
@@ -190,5 +209,16 @@ export const sendMessage = (form: { channel: string; to?: string; title: string;
   api.post('/messages/send', form).then((r) => r.data);
 export const getMessageChannels = () => api.get('/messages/channels').then((r) => r.data);
 export const getMessageLogs = (limit = 50) => api.get('/messages/logs', { params: { limit } }).then((r) => r.data);
+
+// ===== 文件驱动热切换（方案A：配置入库 + 生效）=====
+export const getFileDriver = () => api.get('/files/driver').then((r) => r.data);
+export const switchFileDriver = (driver: string) => api.put('/files/driver', { driver }).then((r) => r.data);
+
+// ===== 全局回收站 =====
+export const getRecycleBin = (params: { page?: number; pageSize?: number; keyword?: string; module?: string }) =>
+  api.get('/recycle-bin', { params }).then((r) => r.data);
+export const getRecycleModules = () => api.get('/recycle-bin/modules').then((r) => r.data);
+export const restoreRecycleItem = (id: number) => api.post(`/recycle-bin/${id}/restore`).then((r) => r.data);
+export const purgeRecycleItem = (id: number) => api.delete(`/recycle-bin/${id}`).then((r) => r.data);
 
 export default api;

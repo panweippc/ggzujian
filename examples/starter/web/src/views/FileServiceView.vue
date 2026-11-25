@@ -8,7 +8,15 @@
 
     <div class="fs-body">
       <div class="fs-tip">
-        统一文件服务：业务只调 <code>/api/files/*</code>，底层存储由 <code>STORAGE_DRIVER</code> 决定（默认 local，已预留 minio/oss 适配位）。当前驱动：<el-tag size="small" type="primary" effect="plain">{{ driver }}</el-tag>
+        统一文件服务：业务只调 <code>/api/files/*</code>，底层存储可热切换（配置入库，立即生效，无需重启）。
+        <div class="driver-switch" style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <span>当前驱动：</span>
+          <el-select v-model="driver" size="small" style="width:220px" @change="onDriverChange">
+            <el-option v-for="d in driverOptions" :key="d.key" :label="d.label" :value="d.key" :disabled="!d.ready" />
+          </el-select>
+          <el-tag v-if="driverReady" size="small" type="success" effect="plain">可用</el-tag>
+          <el-tag v-else size="small" type="warning" effect="plain">预留适配位，需接 SDK</el-tag>
+        </div>
       </div>
 
       <!-- 上传区 -->
@@ -63,7 +71,9 @@
 import { ref, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import PageHeaderBar from '../components/PageHeaderBar.vue';
-import { getFiles, deleteFile, previewFile, downloadFile } from '../services/api';
+import {
+  getFiles, deleteFile, previewFile, downloadFile, getFileDriver, switchFileDriver,
+} from '../services/api';
 
 const loading = ref(false);
 const rows = ref<any[]>([]);
@@ -71,6 +81,8 @@ const total = ref(0);
 const page = ref(1);
 const pageSize = 30;
 const driver = ref('local');
+const driverOptions = ref<{ key: string; label: string; ready: boolean }[]>([]);
+const driverReady = computed(() => driverOptions.value.find((d) => d.key === driver.value)?.ready ?? true);
 
 const uploadUrl = '/api/files/upload';
 const uploadHeaders = computed(() => ({ Authorization: `Bearer ${localStorage.getItem('token') || ''}` }));
@@ -82,15 +94,28 @@ const formatSize = (b: number) => {
   return b >= 1024 * 1024 ? (b / 1024 / 1024).toFixed(2) + ' MB' : (b / 1024).toFixed(1) + ' KB';
 };
 
+async function loadDriver() {
+  try {
+    const r: any = await getFileDriver();
+    driver.value = r.data?.current || 'local';
+    driverOptions.value = r.data?.available || [];
+  } catch { /* 忽略，保持默认 local */ }
+}
+
+async function onDriverChange(val: string) {
+  try {
+    const r: any = await switchFileDriver(val);
+    if (r.success) ElMessage.success(`已切换到 ${val}，立即生效`);
+    else ElMessage.error(r.message || '切换失败');
+  } catch { ElMessage.error('切换失败'); }
+  await loadDriver();
+}
+
 async function load() {
   loading.value = true;
   try {
     const r = await getFiles({ page: page.value, pageSize });
-    if (r.success) {
-      rows.value = r.data;
-      total.value = r.total;
-      if (r.data.length) driver.value = r.data[0].driver || 'local';
-    }
+    if (r.success) { rows.value = r.data; total.value = r.total; }
   } catch { ElMessage.error('文件列表加载失败'); }
   finally { loading.value = false; }
 }
@@ -124,7 +149,7 @@ async function remove(row: any) {
   } catch { /* 取消 */ }
 }
 
-onMounted(load);
+onMounted(() => { load(); loadDriver(); });
 </script>
 
 <style scoped>

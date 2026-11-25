@@ -59,6 +59,8 @@ cp server/.env.example server/.env
 
 ```bash
 cd server && npm i
+# 版本化迁移（自动建全部表、记录 checksum 防重复导入）
+node scripts/migrate.mjs          # 依次迁移 db.sql / db-extend-common.sql / db-extend-enterprise.sql
 node -e "import('@panweippc/auth-kit').then(m=>console.log(m.hashPassword('Admin@2026pass')))"
 # 把输出的哈希填入下面的 SQL 并在 MySQL 执行
 # INSERT INTO users(username,password,role) VALUES('admin','<上一步的哈希>','admin');
@@ -87,8 +89,14 @@ cd web && npm i && npm run dev   # 监听 3008，/api 代理到 3011
 - **体验**：三套主题（紫蓝/亮色/暗色）、布局设置抽屉、多标签页导航、返回顶部、AI 助手悬浮球
 - **安全**（`/security`）：TOTP 二次验证、会话管理（踢下线）、IP 白名单、脱敏策略
 - **运维**：系统监控（`/monitor`）、配置中心（`/config`）、定时任务（`/tasks`）、接口文档（`/api-docs`）
+- **基础数据与标准**（`/base-data`）：组织机构/行政区划/行业分类树形维护、字典分类与缓存/批量接口、代码化数据标准体检（`node scripts/check-standards.mjs`）
+- **统一接入**：文件服务（`/files`，前端可热切换驱动、配置入库即时生效）、消息通道（`/message-channels`）、数据访问适配层（`DB_DRIVER`，预留国产库/NoSQL/时序）
+- **全留痕**：网关自动审计所有写操作（含未埋点接口）+ 手动审计自动去重；日志哈希链防篡改（`/api/audit/verify-chain`）、归档（`/api/audit/archive`）、增强查询（`/api/audit/logs/enhanced`）、危险操作 webhook 告警
+- **回收站**：顶栏 ♻，删除的文件/记录进回收站，保留 30 天（可配 `RECYCLE_KEEP_DAYS`）自动清除，支持恢复/彻底清除；后端 `/api/recycle-bin*`
+- **网关运维**：`/metrics`（Prometheus）、`/api/api-docs.json`（自动生成接口清单）、维护模式开关、写接口幂等键（`Idempotency-Key` 请求头）、版本响应头
+- **工程化**：`npm test`（单测）、`node scripts/migrate.mjs`（版本化迁移）、Dockerfile + docker-compose 一键起、组件与接口文档（`/component-docs`）、配置推送（dev→prod）
 
-> 两个扩展表脚本都带演示数据（部门/角色/员工 + 2 条通知 + 字典 + 配置项 + 3 个任务），登录后即可看到效果。创建备份、添加用户、修改密码等操作会自动推送通知。
+> 扩展表脚本都带演示数据（部门/角色/员工 + 2 条通知 + 字典 + 配置项 + 3 个任务），登录后即可看到效果。创建备份、添加用户、修改密码等操作会自动推送通知。
 
 > **TOTP 说明**：骨架提供完整的绑定/启用/关闭接口与 UI，但**默认不在登录流程强制校验**（避免锁死演示账号）。真实项目在 `server.js` 登录逻辑里按 `/api/totp/status` 的 `enabled` 决定是否要求输入动态码。
 

@@ -26,26 +26,80 @@ const audit = (req, action, module, detail, targetName = '') =>
   }).catch(() => {});
 
 // ==================== 数据字典 ====================
+// 进程内缓存：字典读多写少，加 TTL 缓存减少 DB 查询；任何写操作后整体失效。
+const dictCache = new Map();
+const DICT_TTL = +(process.env.DICT_CACHE_TTL_MS || 5 * 60 * 1000);
+const dictCacheKey = (category, all) => `${category || '*'}|${all ? 'all' : 'on'}`;
+function dictCacheGet(key) {
+  const hit = dictCache.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.at > DICT_TTL) { dictCache.delete(key); return null; }
+  return hit.rows;
+}
+function dictCacheSet(key, rows) { dictCache.set(key, { at: Date.now(), rows }); }
+function dictCacheClear() { dictCache.clear(); }
+
+async function queryDictItems(pool, category, all) {
+  let sql = 'SELECT * FROM dict_items WHERE 1=1';
+  const args = [];
+  if (category) { sql += ' AND category = ?'; args.push(category); }
+  if (!all) sql += ' AND status = 1';
+  sql += ' ORDER BY category, sort, id';
+  const [rows] = await pool.execute(sql, args);
+  return rows;
+}
+
 router.get('/dict-items', adminOnly, async (req, res) => {
   try {
     const { category, all } = req.query;
-    let sql = 'SELECT * FROM dict_items WHERE 1=1';
-    const args = [];
-    if (category) { sql += ' AND category = ?'; args.push(category); }
-    if (all !== '1') sql += ' AND status = 1';
-    sql += ' ORDER BY category, sort, id';
-    const [rows] = await poolOf(req).execute(sql, args);
+    const showAll = all === '1';
+    const key = dictCacheKey(category, showAll);
+    const cached = dictCacheGet(key);
+    if (cached) return res.json({ success: true, data: cached, cached: true });
+    const rows = await queryDictItems(poolOf(req), category, showAll);
+    dictCacheSet(key, rows);
     res.json({ success: true, data: rows });
   } catch (e) { res.status(500).json({ success: false, message: '读取字典失败' }); }
 });
+
+// 批量取字典：一次请求拿多个分类，供复杂表单/多下拉页减少往返
+router.post('/dict-items/batch', adminOnly, async (req, res) => {
+  try {
+    const categories = Array.isArray(req.body?.categories) ? req.body.categories.filter(Boolean) : [];
+    if (!categories.length) return res.status(400).json({ success: false, message: 'categories 不能为空' });
+    const showAll = req.body?.all === true || req.body?.all === '1';
+    const result = {};
+    for (const cat of categories) {
+      const key = dictCacheKey(cat, showAll);
+      let rows = dictCacheGet(key);
+      if (!rows) { rows = await queryDictItems(poolOf(req), cat, showAll); dictCacheSet(key, rows); }
+      result[cat] = rows;
+    }
+    res.json({ success: true, data: result });
+  } catch (e) { res.status(500).json({ success: false, message: '批量读取字典失败' }); }
+});
+
+// 同分类下 value 唯一校验（excludeId 用于更新时排除自身）
+async function assertDictValueUnique(pool, category, value, excludeId = null) {
+  let sql = 'SELECT id FROM dict_items WHERE category=? AND value=?';
+  const args = [category, String(value)];
+  if (excludeId) { sql += ' AND id<>?'; args.push(excludeId); }
+  const [rows] = await pool.execute(sql, args);
+  return rows.length === 0;
+}
+
 router.post('/dict-items', adminOnly, async (req, res) => {
   const { category, label, value, sort = 0, status = 1, remark = '' } = req.body || {};
   if (!category || !label || value === undefined) return res.status(400).json({ success: false, message: '分类/名称/值必填' });
   try {
+    if (!await assertDictValueUnique(poolOf(req), category, value)) {
+      return res.status(409).json({ success: false, message: `分类 ${category} 下已存在值 ${value}` });
+    }
     const [r] = await poolOf(req).execute(
       'INSERT INTO dict_items (category,label,value,sort,status,remark) VALUES (?,?,?,?,?,?)',
       [category, label, String(value), sort, status, remark]
     );
+    dictCacheClear();
     audit(req, 'create', 'dict', `新增字典项 ${category}/${label}`, label);
     res.json({ success: true, data: { id: r.insertId } });
   } catch (e) { res.status(500).json({ success: false, message: '新增失败' }); }
@@ -53,10 +107,14 @@ router.post('/dict-items', adminOnly, async (req, res) => {
 router.put('/dict-items/:id', adminOnly, async (req, res) => {
   const { category, label, value, sort = 0, status = 1, remark = '' } = req.body || {};
   try {
+    if (!await assertDictValueUnique(poolOf(req), category, value, req.params.id)) {
+      return res.status(409).json({ success: false, message: `分类 ${category} 下已存在值 ${value}` });
+    }
     await poolOf(req).execute(
       'UPDATE dict_items SET category=?,label=?,value=?,sort=?,status=?,remark=? WHERE id=?',
       [category, label, String(value), sort, status, remark, req.params.id]
     );
+    dictCacheClear();
     audit(req, 'update', 'dict', `修改字典项 ${label}`, label);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ success: false, message: '修改失败' }); }
@@ -64,9 +122,53 @@ router.put('/dict-items/:id', adminOnly, async (req, res) => {
 router.delete('/dict-items/:id', adminOnly, async (req, res) => {
   try {
     await poolOf(req).execute('DELETE FROM dict_items WHERE id=?', [req.params.id]);
+    dictCacheClear();
     audit(req, 'delete', 'dict', `删除字典项 ID ${req.params.id}`, req.params.id);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ success: false, message: '删除失败' }); }
+});
+
+// 字典分类 CRUD
+router.get('/dict-categories', adminOnly, async (req, res) => {
+  try {
+    const [rows] = await poolOf(req).execute('SELECT * FROM dict_categories ORDER BY sort, id');
+    res.json({ success: true, data: rows });
+  } catch (e) { res.status(500).json({ success: false, message: '读取字典分类失败' }); }
+});
+router.post('/dict-categories', adminOnly, async (req, res) => {
+  const { code, name, description = '', sort = 0, status = 1 } = req.body || {};
+  if (!code || !name) return res.status(400).json({ success: false, message: '编码/名称必填' });
+  try {
+    const [r] = await poolOf(req).execute(
+      'INSERT INTO dict_categories (code,name,description,sort,status) VALUES (?,?,?,?,?)',
+      [code, name, description, sort, status]
+    );
+    audit(req, 'create', 'dict', `新增字典分类 ${code}/${name}`, name);
+    res.json({ success: true, data: { id: r.insertId } });
+  } catch (e) {
+    if (String(e?.code) === 'ER_DUP_ENTRY') return res.status(409).json({ success: false, message: `分类编码 ${code} 已存在` });
+    res.status(500).json({ success: false, message: '新增分类失败' });
+  }
+});
+router.put('/dict-categories/:id', adminOnly, async (req, res) => {
+  const { name, description = '', sort = 0, status = 1 } = req.body || {};
+  try {
+    await poolOf(req).execute('UPDATE dict_categories SET name=?,description=?,sort=?,status=? WHERE id=?',
+      [name, description, sort, status, req.params.id]);
+    audit(req, 'update', 'dict', `修改字典分类 ID ${req.params.id}`, name);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ success: false, message: '修改分类失败' }); }
+});
+router.delete('/dict-categories/:id', adminOnly, async (req, res) => {
+  try {
+    const [[cat]] = await poolOf(req).execute('SELECT code FROM dict_categories WHERE id=?', [req.params.id]);
+    if (!cat) return res.status(404).json({ success: false, message: '分类不存在' });
+    const [[used]] = await poolOf(req).execute('SELECT COUNT(*) n FROM dict_items WHERE category=?', [cat.code]);
+    if (used.n > 0) return res.status(409).json({ success: false, message: `分类 ${cat.code} 下仍有 ${used.n} 个字典项，请先删除` });
+    await poolOf(req).execute('DELETE FROM dict_categories WHERE id=?', [req.params.id]);
+    audit(req, 'delete', 'dict', `删除字典分类 ${cat.code}`, cat.code);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ success: false, message: '删除分类失败' }); }
 });
 
 // ==================== 配置中心（多环境 + 版本历史 + 回滚） ====================

@@ -6,3 +6,7 @@ export { default as CrudPanel } from './CrudPanel.vue';
 export type { CrudConfig, CrudColumn, CrudField } from './CrudPanel.vue';
 export { default as OperationLogPanel } from './OperationLogPanel.vue';
 export type { LogConfig, LogColumn } from './OperationLogPanel.vue';
+export { default as AdvancedTable } from './AdvancedTable.vue';
+export type { AdvancedTableConfig, AdvancedColumn } from './AdvancedTable.vue';
+export { default as SmartForm } from './SmartForm.vue';
+export type { SmartFormConfig, FormField, FormGroup } from './SmartForm.vue';

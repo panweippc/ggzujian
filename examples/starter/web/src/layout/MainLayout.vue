@@ -1,10 +1,13 @@
 <template>
   <div class="layout">
-    <DynamicSidebar :collapsed="layout.sidebarCollapsed" />
+    <DynamicSidebar v-if="!isMobile" :collapsed="layout.sidebarCollapsed" />
+    <el-drawer v-else v-model="mobileDrawer" direction="ltr" :with-header="false" size="240px" class="mobile-drawer">
+      <DynamicSidebar :collapsed="false" />
+    </el-drawer>
     <div class="main">
       <header class="topbar">
         <div class="brand">
-          <button type="button" class="collapse-btn" title="收起/展开侧边栏" @click="updateLayout({ sidebarCollapsed: !layout.sidebarCollapsed })">☰</button>
+          <button type="button" class="collapse-btn" :title="isMobile ? '打开菜单' : '收起/展开侧边栏'" @click="onToggleSidebar">☰</button>
           <span class="logo-mark">{{ BRAND.logo }}</span>
           <span class="brand-name">{{ BRAND.title }}</span>
         </div>
@@ -55,7 +58,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, nextTick } from 'vue';
+import { computed, ref, watch, nextTick, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { CaretBottom, User, Lock, SwitchButton, Setting } from '@element-plus/icons-vue';
 import DynamicSidebar from '../components/DynamicSidebar.vue';
@@ -80,8 +83,23 @@ const initial = computed(() => (userStore.displayName ? userStore.displayName.ch
 const settingsVisible = ref(false);
 const refreshing = ref(false);
 
-// 路由变化 → 记录 tab
-watch(() => route.fullPath, () => tabsStore.add(route), { immediate: true });
+// ===== 多端适配：窄屏（<900px）侧边栏改为抽屉 =====
+const MOBILE_BREAKPOINT = 900;
+const isMobile = ref(window.innerWidth < MOBILE_BREAKPOINT);
+const mobileDrawer = ref(false);
+function onResize() { isMobile.value = window.innerWidth < MOBILE_BREAKPOINT; }
+function onToggleSidebar() {
+  if (isMobile.value) mobileDrawer.value = true;
+  else updateLayout({ sidebarCollapsed: !layout.sidebarCollapsed });
+}
+window.addEventListener('resize', onResize);
+onUnmounted(() => window.removeEventListener('resize', onResize));
+
+// 路由变化 → 记录 tab；窄屏时自动关抽屉
+watch(() => route.fullPath, () => {
+  tabsStore.add(route);
+  if (isMobile.value) mobileDrawer.value = false;
+}, { immediate: true });
 
 async function refreshView() {
   refreshing.value = true;
@@ -141,4 +159,8 @@ function onCommand(cmd: string) {
 .caret { color: var(--text-secondary); }
 
 .content { flex: 1; overflow-y: auto; background: var(--bg-gradient); }
+
+/* 窄屏抽屉里的侧边栏：撑满、去边框 */
+:deep(.mobile-drawer .el-drawer__body) { padding: 0; }
+:deep(.mobile-drawer .sidebar) { width: 100% !important; height: 100%; border-right: none; }
 </style>

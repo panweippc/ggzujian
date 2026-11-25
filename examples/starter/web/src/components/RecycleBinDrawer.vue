@@ -10,7 +10,7 @@
     <div class="rb-head">
       <div class="rb-tip">
         保留 {{ keepDays }} 天，过期自动清除。
-        <el-tag size="small" type="warning" effect="plain" style="margin-left:6px">接口待接入</el-tag>
+        <el-tag size="small" type="success" effect="plain" style="margin-left:6px">已接入</el-tag>
       </div>
       <div class="rb-filters">
         <el-input v-model="keyword" placeholder="搜索标题 / 删除人" clearable style="width: 210px" @keyup.enter="search" @clear="search" />
@@ -22,7 +22,7 @@
     </div>
 
     <div v-loading="loading" class="rb-body">
-      <el-empty v-if="!loading && !list.length" description="回收站是空的（接入后端接口后显示已删除记录）" :image-size="80" />
+      <el-empty v-if="!loading && !list.length" description="回收站是空的（删除的文件和记录会出现在这里）" :image-size="80" />
       <div v-else class="rb-list">
         <div v-for="it in list" :key="it.id" class="rb-item">
           <div class="rb-item-main">

@@ -26,6 +26,21 @@ INSERT IGNORE INTO dict_items (category, label, value, sort, remark) VALUES
 ('order_status', '处理中', 'processing', 2, '演示字典'),
 ('order_status', '已完成', 'done', 3, '演示字典');
 
+-- 1b) 字典分类：统一管理 category 的中文名/说明，供下拉与分组展示
+CREATE TABLE IF NOT EXISTS dict_categories (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  code VARCHAR(64) NOT NULL UNIQUE COMMENT '分类编码，对应 dict_items.category',
+  name VARCHAR(128) NOT NULL COMMENT '分类名称',
+  description VARCHAR(255) DEFAULT NULL,
+  sort INT NOT NULL DEFAULT 0,
+  status TINYINT NOT NULL DEFAULT 1,
+  createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT IGNORE INTO dict_categories (code, name, description, sort) VALUES
+('gender', '性别', '人员性别枚举', 1),
+('order_status', '订单状态', '订单流转状态', 2);
+
 -- 2) 配置中心：key-value 配置，JSON 值；支持多环境 + 版本历史
 CREATE TABLE IF NOT EXISTS app_configs (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -132,4 +147,47 @@ CREATE TABLE IF NOT EXISTS file_objects (
   uploadedBy VARCHAR(64) DEFAULT NULL,
   createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_file_created (createdAt)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 8) 公共基础数据：组织机构 / 行政区划 / 行业分类统一模型，parentCode 支持树形
+CREATE TABLE IF NOT EXISTS base_data (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  type VARCHAR(32) NOT NULL COMMENT '类型: organization=组织机构 region=行政区划 industry=行业分类',
+  code VARCHAR(64) NOT NULL COMMENT '编码（全局按 type 唯一）',
+  name VARCHAR(128) NOT NULL COMMENT '名称',
+  parentCode VARCHAR(64) DEFAULT NULL COMMENT '上级编码，根节点为 NULL',
+  sort INT NOT NULL DEFAULT 0,
+  status TINYINT NOT NULL DEFAULT 1 COMMENT '1=启用 0=停用',
+  remark VARCHAR(255) DEFAULT NULL,
+  createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_base_type_code (type, code),
+  INDEX idx_base_type_parent (type, parentCode)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT IGNORE INTO base_data (type, code, name, parentCode, sort, remark) VALUES
+('organization', 'HQ', '总公司', NULL, 1, '演示基础数据'),
+('organization', 'HQ-HR', '人力资源部', 'HQ', 1, '演示基础数据'),
+('organization', 'HQ-IT', '信息技术部', 'HQ', 2, '演示基础数据'),
+('region', '110000', '北京市', NULL, 1, '演示基础数据'),
+('region', '110100', '市辖区', '110000', 1, '演示基础数据'),
+('region', '110101', '东城区', '110100', 1, '演示基础数据'),
+('industry', 'A', '农、林、牧、渔业', NULL, 1, '演示基础数据'),
+('industry', 'I', '信息传输、软件和信息技术服务业', NULL, 9, '演示基础数据'),
+('industry', 'I65', '软件和信息技术服务业', 'I', 1, '演示基础数据');
+
+-- 9) 回收站：软删记录快照，保留 KEEP_DAYS 天后由定时任务自动清除
+CREATE TABLE IF NOT EXISTS recycle_bin (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  module VARCHAR(64) NOT NULL COMMENT '来源模块: file/dict/base_data/user/...（前端据此分组）',
+  module_label VARCHAR(64) DEFAULT NULL COMMENT '模块中文名',
+  record_id VARCHAR(64) NOT NULL COMMENT '原记录主键',
+  title VARCHAR(255) DEFAULT NULL COMMENT '展示标题',
+  payload JSON DEFAULT NULL COMMENT '原记录完整快照（用于恢复）',
+  extra JSON DEFAULT NULL COMMENT '附加数据（如文件的 objectKey、物理路径）',
+  deleted_by VARCHAR(64) DEFAULT NULL,
+  deleted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  expire_at DATETIME NOT NULL COMMENT '过期时间 = deleted_at + KEEP_DAYS',
+  INDEX idx_recycle_expire (expire_at),
+  INDEX idx_recycle_module (module),
+  INDEX idx_recycle_title (title)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

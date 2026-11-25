@@ -14,6 +14,8 @@ import path from 'path';
 import crypto from 'crypto';
 import { getOperator } from '@panweippc/auth-kit';
 import { writeAudit } from '../middleware/audit.js';
+import { storageDriver, setRuntimeConfig, refreshRuntimeConfig } from '../services/runtime-config.js';
+import { addRecycleItem } from './recycle.js';
 
 const router = express.Router();
 const poolOf = (req) => req.app.locals.pool;
@@ -24,8 +26,9 @@ const adminOnly = (req, res, next) => {
     ? next() : res.status(403).json({ success: false, message: '无权限，仅管理员可操作' });
 };
 
-const DRIVER = process.env.STORAGE_DRIVER || 'local';
+const DEFAULT_DRIVER = process.env.STORAGE_DRIVER || 'local';
 const UPLOAD_ROOT = path.join(process.cwd(), 'uploads', 'files');
+const SUPPORTED_DRIVERS = ['local', 'minio', 'oss'];
 fs.mkdirSync(UPLOAD_ROOT, { recursive: true });
 
 // 文件元数据表存在数据库里（list 可查），上传后写一行
@@ -57,28 +60,72 @@ const upload = multer({
 });
 
 /** 适配层：把存储 key 映射为可访问 URL（local 走 /uploads/files） */
-function publicUrl(storedName) {
-  if (DRIVER === 'local') return `/uploads/files/${storedName}`;
+function publicUrl(storedName, driver) {
+  if (driver === 'local') return `/uploads/files/${storedName}`;
   // minio/oss：接入 SDK 后返回预签名或公网 URL
   return `/api/files/${storedName}/download`;
 }
 
-/** 上传：支持单文件（field=file） */
+/** 读取当前文件驱动（运行时配置，热切换） */
+async function currentDriver(req) {
+  return storageDriver(poolOf(req));
+}
+
+/**
+ * 驱动查询（前端下拉框用）
+ * current 来自运行时配置；available 标出哪些驱动已真实可用、哪些是预留。
+ */
+router.get('/files/driver', async (req, res) => {
+  try {
+    const current = await currentDriver(req);
+    res.json({
+      success: true,
+      data: {
+        current,
+        available: SUPPORTED_DRIVERS.map((key) => ({
+          key,
+          label: { local: '本地存储', minio: 'MinIO（需接 SDK）', oss: '阿里云 OSS（需接 SDK）' }[key],
+          ready: key === 'local',
+        })),
+      },
+    });
+  } catch (e) { res.status(500).json({ success: false, message: '读取驱动失败' }); }
+});
+
+/** 切换驱动（配置入库 + 缓存刷新，立即生效，无需重启） */
+router.put('/files/driver', adminOnly, async (req, res) => {
+  const driver = String(req.body?.driver || '').trim().toLowerCase();
+  if (!SUPPORTED_DRIVERS.includes(driver)) {
+    return res.status(400).json({ success: false, message: `不支持的驱动，可用：${SUPPORTED_DRIVERS.join(', ')}` });
+  }
+  try {
+    await setRuntimeConfig(poolOf(req), 'runtime.storage.driver', driver, getOperator(req));
+    refreshRuntimeConfig('runtime.storage.driver');
+    await writeAudit(poolOf(req), req, {
+      action: 'switch_driver', module: 'file', targetName: driver,
+      detail: `切换文件存储驱动 → ${driver}`, afterValue: { driver },
+    });
+    res.json({ success: true, data: { current: driver } });
+  } catch (e) { res.status(500).json({ success: false, message: '切换驱动失败' }); }
+});
+
+/** 上传：支持单文件（field=file）；驱动在上传时实时读取，切换后立即生效 */
 router.post('/files/upload', upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ success: false, message: '未收到文件' });
   const { originalname, filename, size, mimetype } = req.file;
-  const url = publicUrl(filename);
+  const driver = await currentDriver(req);
+  const url = publicUrl(filename, driver);
   try {
     await poolOf(req).execute(
       `INSERT INTO ${META_TABLE} (objectKey, originalName, mimeType, size, driver, url, uploadedBy, createdAt)
        VALUES (?,?,?,?,?,?,?,NOW())`,
-      [filename, originalname, mimetype, size, DRIVER, url, getOperator(req)]
+      [filename, originalname, mimetype, size, driver, url, getOperator(req)]
     );
     await writeAudit(poolOf(req), req, {
-      action: 'file_upload', module: 'file', targetName: originalname, detail: `上传文件 ${originalname} (${size} 字节)`
+      action: 'file_upload', module: 'file', targetName: originalname, detail: `上传文件 ${originalname} (${size} 字节，驱动 ${driver})`
     });
   } catch { /* 元数据写入失败不影响文件本身 */ }
-  res.json({ success: true, data: { objectKey: filename, originalName: originalname, url, size, mimeType: mimetype, driver: DRIVER } });
+  res.json({ success: true, data: { objectKey: filename, originalName: originalname, url, size, mimeType: mimetype, driver } });
 });
 
 /** 列表：分页查询文件元数据 */
@@ -119,15 +166,30 @@ router.get('/files/:key/preview', async (req, res) => {
   fs.createReadStream(file).pipe(res);
 });
 
-/** 删除 */
+/** 删除（软删：物理文件移入 trash 目录 + 元数据快照入回收站，30 天后自动清除） */
 router.delete('/files/:key', adminOnly, async (req, res) => {
   const key = path.basename(req.params.key);
   const file = path.join(UPLOAD_ROOT, key);
+  const pool = poolOf(req);
   try {
-    if (fs.existsSync(file)) fs.unlinkSync(file);
-    await poolOf(req).execute(`DELETE FROM ${META_TABLE} WHERE objectKey=?`, [key]);
-    await writeAudit(poolOf(req), req, { action: 'file_delete', module: 'file', targetName: key, detail: `删除文件 ${key}` });
-    res.json({ success: true });
+    const [rows] = await pool.execute(`SELECT * FROM ${META_TABLE} WHERE objectKey=?`, [key]);
+    const meta = rows[0];
+
+    // 物理文件移到回收目录（而非直接删除），保证可恢复
+    const trashDir = path.join(process.cwd(), 'uploads', '.trash');
+    fs.mkdirSync(trashDir, { recursive: true });
+    let trashPath = null;
+    if (fs.existsSync(file)) {
+      trashPath = path.join(trashDir, `${Date.now()}-${key}`);
+      fs.renameSync(file, trashPath);
+    }
+    await addRecycleItem(pool, {
+      module: 'file', recordId: meta?.id ?? key, title: meta?.originalName || key,
+      payload: meta || null, extra: { objectKey: key, trashPath }, deletedBy: getOperator(req),
+    });
+    await pool.execute(`DELETE FROM ${META_TABLE} WHERE objectKey=?`, [key]);
+    await writeAudit(pool, req, { action: 'file_delete', module: 'file', targetName: key, detail: `删除文件 ${key}（已入回收站）` });
+    res.json({ success: true, message: '已移入回收站，30 天后自动清除' });
   } catch (e) { res.status(500).json({ success: false, message: '删除失败' }); }
 });
 
