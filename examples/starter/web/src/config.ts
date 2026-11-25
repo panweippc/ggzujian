@@ -63,6 +63,10 @@ export const SIDE_MENUS = [
   { id: 12, name: '消息通道', path: '/message-channels', icon: 'bell' },
   { id: 13, name: '基础数据', path: '/base-data', icon: 'database' },
   { id: 14, name: '组件文档', path: '/component-docs', icon: 'book' },
+  { id: 15, name: '工作流', path: '/workflow', icon: 'quality' },
+  { id: 16, name: '平台能力', path: '/platform', icon: 'setting' },
+  { id: 17, name: 'AI 运维', path: '/ai-ops', icon: 'monitor' },
+  { id: 18, name: '低代码搭建', path: '/low-code', icon: 'palette' },
 ];
 
 // ============ 系统管理 - Tab 配置 ============

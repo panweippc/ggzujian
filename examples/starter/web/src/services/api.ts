@@ -221,4 +221,49 @@ export const getRecycleModules = () => api.get('/recycle-bin/modules').then((r) 
 export const restoreRecycleItem = (id: number) => api.post(`/recycle-bin/${id}/restore`).then((r) => r.data);
 export const purgeRecycleItem = (id: number) => api.delete(`/recycle-bin/${id}`).then((r) => r.data);
 
+// ===== 平台化能力（工作流 / 表单 / 报表 / 租户 / 合规 / 集成）=====
+export const platformApi = {
+  workflows: () => api.get('/workflows').then((r) => r.data),
+  createWorkflow: (form: any) => api.post('/workflows', form).then((r) => r.data),
+  startWorkflow: (code: string, form: any) => api.post(`/workflows/${code}/start`, form).then((r) => r.data),
+  myInstances: () => api.get('/workflows/instances').then((r) => r.data),
+  instanceDetail: (id: number) => api.get(`/workflows/instances/${id}`).then((r) => r.data),
+  myTasks: () => api.get('/workflows/tasks/mine').then((r) => r.data),
+  handleTask: (id: number, form: any) => api.post(`/workflows/tasks/${id}/handle`, form).then((r) => r.data),
+  formSchemas: () => api.get('/form-schemas').then((r) => r.data),
+  saveFormSchema: (form: any) => api.post('/form-schemas', form).then((r) => r.data),
+  reports: () => api.get('/reports').then((r) => r.data),
+  reportData: (code: string) => api.get(`/reports/${code}/data`).then((r) => r.data),
+  tenants: () => api.get('/tenants').then((r) => r.data),
+  plans: () => api.get('/plans').then((r) => r.data),
+  classifications: () => api.get('/classifications').then((r) => r.data),
+  saveClassification: (form: any) => api.post('/classifications', form).then((r) => r.data),
+  encrypt: (value: string) => api.post('/classifications/encrypt', { value }).then((r) => r.data),
+  decrypt: (cipher: string) => api.post('/classifications/decrypt', { cipher }).then((r) => r.data),
+  delegations: () => api.get('/delegations').then((r) => r.data),
+  saveDelegation: (form: any) => api.post('/delegations', form).then((r) => r.data),
+  subscriptions: () => api.get('/event-subscriptions').then((r) => r.data),
+  saveSubscription: (form: any) => api.post('/event-subscriptions', form).then((r) => r.data),
+  etl: () => api.get('/etl').then((r) => r.data),
+  saveEtl: (form: any) => api.post('/etl', form).then((r) => r.data),
+  apiKeys: () => api.get('/api-keys').then((r) => r.data),
+  createApiKey: (form: any) => api.post('/api-keys', form).then((r) => r.data),
+};
+
+// ===== 稳定性 / 可观测 / AI =====
+export const opsApi = {
+  status: () => api.get('/platform/status').then((r) => r.data),
+  circuit: () => api.get('/resilience/circuit').then((r) => r.data),
+  cacheStats: () => api.get('/resilience/cache/stats').then((r) => r.data),
+  featureFlags: () => api.get('/feature-flags').then((r) => r.data),
+  logs: (file: string, lines: number) => api.get('/observability/logs', { params: { file, lines } }).then((r) => r.data),
+  traces: () => api.get('/observability/traces').then((r) => r.data),
+  sampling: () => api.get('/observability/sampling').then((r) => r.data),
+  ueba: () => api.get('/ueba/alerts').then((r) => r.data),
+  chat: (messages: any[]) => api.post('/ai/chat', { messages }).then((r) => r.data),
+  rag: (query: string) => api.post('/ai/rag/search', { query }).then((r) => r.data),
+  nl2sql: (question: string) => api.post('/ai/nl2sql', { question }).then((r) => r.data),
+  inspect: () => api.get('/ai/inspect').then((r) => r.data),
+};
+
 export default api;

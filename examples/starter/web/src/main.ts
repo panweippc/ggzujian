@@ -13,6 +13,9 @@ import {
 import App from './App.vue';
 import router from './router';
 import { useUserStore } from './stores/user';
+import { setLocale, locale } from './i18n';
+import { registerPWA } from './pwa';
+import { bootstrapMicroFrontend } from './micro';
 
 // token 存储（key 与 services/api.ts、stores/user.ts 保持一致：token）
 const store = createTokenStore({ access: 'token', refresh: 'refreshToken' });
@@ -42,5 +45,15 @@ app.directive('perm', {
     if (binding.value && !useUserStore(pinia).can(binding.value)) el.parentNode?.removeChild(el);
   }
 });
+
+// i18n：初始化语言（偏好已在 i18n 模块从 localStorage 读取）
+setLocale(locale.value);
+document.documentElement.lang = locale.value;
+
+// 微前端基座：注册子应用后才会真正启用（零依赖预留，未接入 qiankun 时不影响主应用）
+bootstrapMicroFrontend();
+
+// PWA：仅生产环境注册 Service Worker（开发期跳过以免干扰 HMR）
+registerPWA();
 
 app.mount('#app');

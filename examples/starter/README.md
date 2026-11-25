@@ -12,6 +12,10 @@ starter/
 │   ├── db.sql                # 最小表结构（用户表 + 操作日志表）
 │   ├── db-extend-system.sql  # 系统管理扩展表（部门/角色/员工/菜单/权限/通知 + 演示数据）
 │   ├── db-extend-common.sql  # 公共组件表（字典/配置/定时任务/会话/IP白名单/TOTP）
+│   ├── db-extend-enterprise.sql # 企业级补全表（审计归档/幂等键/回执/分片/数据权限规则）
+│   ├── db-extend-platform.sql   # 平台化扩展表（工作流/表单/报表/租户/合规/集成/AI巡检）
+│   ├── db-all.sql             # 一次性导入合集（由 npm run sql:bundle 自动生成，勿手改）
+│   ├── scripts/sql-files.mjs  # SQL 清单与依赖顺序（迁移/合集共用的唯一数据源）
 │   ├── routes/
 │   │   ├── system.js         # 系统管理 + 通知 + 安全告警接口
 │   │   └── common.js         # 公共组件接口（字典/配置/任务/监控/TOTP）
@@ -38,29 +42,45 @@ starter/
 
 ### ① 准备数据库
 
+两种方式**二选一**：全新安装推荐方式 A（零配置）；需要升级/重复执行管控用方式 B（版本化迁移）。
+
+#### 方式 A：直接导入合集 SQL（推荐，零前置配置）
+
+不需要 `.env`，只要能连上 MySQL。命令**必须带** `--default-character-set=utf8mb4`：Windows 下 mysql 客户端默认按 GBK 解读 UTF-8 文件，不加中文会全部变乱码。
+
 ```bash
-# ⚠️ 关键：必须带 --default-character-set=utf8mb4
-# 否则 Windows 下 mysql 客户端按系统 GBK 解读 UTF-8 文件，中文全部变乱码
-# 1) 先建库
+# 1) 建库（库名自行替换）
 mysql -u root -p --default-character-set=utf8mb4 -e "CREATE DATABASE IF NOT EXISTS my_project DEFAULT CHARSET utf8mb4;"
-# 2) 最小表（用户 + 操作日志）
-mysql -u root -p --default-character-set=utf8mb4 my_project < server/db.sql
-# 3) 系统管理扩展表（部门/角色/员工/菜单/权限/通知中心 + 演示数据，可重复执行）
-mysql -u root -p --default-character-set=utf8mb4 my_project < server/db-extend-system.sql
-# 4) 公共组件表（数据字典/配置中心/定时任务/会话/IP白名单/TOTP，可重复执行）
-mysql -u root -p --default-character-set=utf8mb4 my_project < server/db-extend-common.sql
-# 5) 编辑 server/.env（从 .env.example 复制），填数据库密码和 JWT_SECRET
-cp server/.env.example server/.env
+
+# 2) 一次性导入合集（已包含全部 5 个 SQL，按依赖顺序拼好）
+mysql -u root -p --default-character-set=utf8mb4 my_project < server/db-all.sql
 ```
 
-> 如果之前已经导入过且中文是乱码，重跑上面第 3、4 条命令即可：脚本全部用了 `INSERT IGNORE`，不会覆盖已有行。正确做法是先在 MySQL 里 `DELETE FROM dict_items; DELETE FROM app_configs; DELETE FROM scheduled_tasks; DELETE FROM notifications;` 清空演示表，再重新导入。
+> `db-all.sql` 由 `npm run sql:bundle` 按 `scripts/sql-files.mjs` 的顺序自动生成，**请勿手改**；改了任一源 SQL 后重新生成即可。全部源脚本都是 `CREATE TABLE IF NOT EXISTS` + `INSERT IGNORE`，合集可重复执行，不会覆盖已有数据。
+>
+> 只想装某个模块（比如跳过演示数据）时，可按 [`scripts/sql-files.mjs`](server/scripts/sql-files.mjs) 的顺序单独导入对应的 `db-extend-*.sql`。
+>
+> 如果之前导入过但中文乱码：先在 MySQL 里清空演示表（`DELETE FROM dict_items; DELETE FROM app_configs; DELETE FROM scheduled_tasks; DELETE FROM notifications;`），再重跑上面第 2 步。
 
-生成管理员密码哈希并插入用户：
+#### 方式 B：版本化迁移脚本（需先配 .env）
+
+适合后续升级：脚本把每个 SQL 的 checksum 记到 `schema_migrations` 表，已迁移过的自动跳过；只有 SQL 内容变了才重跑。
+
+```bash
+cp server/.env.example server/.env
+# 编辑 server/.env：至少填 DB_NAME；DB_USER 默认 root，DB_PASSWORD 按本机 MySQL 填写
+cd server && npm i
+node scripts/migrate.mjs    # 按依赖顺序迁移全部 5 个 SQL；缺 DB_NAME 会直接报错并给出上面的指引
+```
+
+> **两种方式建的表完全一样，不要重复执行**。已经用 A 导过库、又想纳入版本管理的，执行一次 B 即可（幂等，只是往 `schema_migrations` 记一笔）。
+>
+> `db-all.sql` 只是一次性导入入口，**不参与版本化迁移**：`migrate.mjs` 永远读 5 个分文件，不会记录合集的 checksum。
+
+生成管理员密码哈希并插入用户（两种方式都需要）：
 
 ```bash
 cd server && npm i
-# 版本化迁移（自动建全部表、记录 checksum 防重复导入）
-node scripts/migrate.mjs          # 依次迁移 db.sql / db-extend-common.sql / db-extend-enterprise.sql
 node -e "import('@panweippc/auth-kit').then(m=>console.log(m.hashPassword('Admin@2026pass')))"
 # 把输出的哈希填入下面的 SQL 并在 MySQL 执行
 # INSERT INTO users(username,password,role) VALUES('admin','<上一步的哈希>','admin');
@@ -94,7 +114,10 @@ cd web && npm i && npm run dev   # 监听 3008，/api 代理到 3011
 - **全留痕**：网关自动审计所有写操作（含未埋点接口）+ 手动审计自动去重；日志哈希链防篡改（`/api/audit/verify-chain`）、归档（`/api/audit/archive`）、增强查询（`/api/audit/logs/enhanced`）、危险操作 webhook 告警
 - **回收站**：顶栏 ♻，删除的文件/记录进回收站，保留 30 天（可配 `RECYCLE_KEEP_DAYS`）自动清除，支持恢复/彻底清除；后端 `/api/recycle-bin*`
 - **网关运维**：`/metrics`（Prometheus）、`/api/api-docs.json`（自动生成接口清单）、维护模式开关、写接口幂等键（`Idempotency-Key` 请求头）、版本响应头
-- **工程化**：`npm test`（单测）、`node scripts/migrate.mjs`（版本化迁移）、Dockerfile + docker-compose 一键起、组件与接口文档（`/component-docs`）、配置推送（dev→prod）
+- **工程化**：`npm test`（单测）、`node scripts/migrate.mjs`（版本化迁移）、`npm run sql:bundle`（生成一次性导入合集）、Dockerfile + docker-compose 一键起、组件与接口文档（`/component-docs`）、配置推送（dev→prod）
+- **平台化**（`/workflow`、`/platform`、`/ai-ops`、`/low-code`）：工作流引擎（流程定义/发起/待办/审批）、表单设计器、报表 BI、多租户与套餐、数据分级与字段加密、委托授权、事件订阅 Webhook、ETL 管线、开放平台 API 密钥；稳定性（熔断/缓存/特性开关）、可观测（trace/结构化日志/UEBA）、AI 助手（聊天/RAG/NL2SQL/智能巡检）、低代码搭建器
+
+> 平台化能力**默认全部走本地实现、零外部依赖**：缓存=内存 LRU、事件总线=内存、加密=AES-256-GCM、AI=内置演示、trace=内存环形缓冲。在 `.env` 填 `REDIS_URL`/`MQ_URL`/`KMS_URL`/`LLM_API_URL`/`OTLP_ENDPOINT`/`VECTOR_DB_URL` 后切换到对应真实适配器（适配器骨架在 `server/services/platform.js`，未接入真实驱动时明确提示，不静默降级）。
 
 > 扩展表脚本都带演示数据（部门/角色/员工 + 2 条通知 + 字典 + 配置项 + 3 个任务），登录后即可看到效果。创建备份、添加用户、修改密码等操作会自动推送通知。
 

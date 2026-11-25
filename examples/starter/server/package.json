@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "node server.js",
-    "test": "node --test tests/*.test.js"
+    "test": "node --test tests/*.test.js",
+    "sql:bundle": "node scripts/bundle-sql.mjs"
   },
   "dependencies": {
     "@panweippc/auth-kit": "file:../../../packages/auth-kit",

@@ -21,6 +21,8 @@ import recycleRouter, { purgeExpired } from './routes/recycle.js';
 import auditExtRouter from './routes/audit-ext.js';
 import gatewayExtRouter from './routes/gateway-ext.js';
 import enterpriseRouter from './routes/enterprise.js';
+import platformRouter from './routes/platform.js';
+import platformOpsRouter from './routes/platform-ops.js';
 import {
   traceMiddleware, auditContextMiddleware, timingMiddleware, createRateLimiters, createLoginLimiter,
   maintenanceMiddleware, versionHeaderMiddleware,
@@ -230,6 +232,10 @@ app.use(gatewayExtRouter);
 
 // 业务底座补全（字典多语言 / 消息回执 / 分片上传 / 任务历史 / 数据权限规则）
 app.use('/api', enterpriseRouter);
+
+// 平台化能力（工作流/表单/报表/多租户/合规/集成）与 稳定性/可观测/AI
+app.use('/api', platformRouter);
+app.use('/api', platformOpsRouter);
 // 回收站过期自动清除：每小时扫描一次，删除超过保留期的快照及其物理文件
 setInterval(() => {
   purgeExpired(pool).then((n) => {

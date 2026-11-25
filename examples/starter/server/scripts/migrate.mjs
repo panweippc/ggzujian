@@ -3,13 +3,26 @@
  * 用法：node scripts/migrate.mjs [sql文件...]
  * 不传参数则按固定顺序迁移所有 SQL；已执行过的文件记录在 schema_migrations 表，自动跳过。
  *
- * 示例：node scripts/migrate.mjs db.sql db-extend-common.sql db-extend-enterprise.sql
+ * 示例：node scripts/migrate.mjs db.sql db-extend-system.sql db-extend-common.sql db-extend-enterprise.sql db-extend-platform.sql
+ *
+ * 前置：必须先配好 server/.env（至少 DB_NAME）；不想配置可跳过本脚本，
+ *       直接用 mysql 命令导入 SQL，见 README「① 准备数据库」。
  */
 import mysql from 'mysql2/promise';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import 'dotenv/config';
+import { SQL_FILES } from './sql-files.mjs';
+
+// 前置检查：脚本依赖 .env 里的数据库配置，缺失时给出明确指引而不是抛连接错误
+if (!process.env.DB_NAME) {
+  console.error('[前置检查失败] 未检测到 DB_NAME，无法连接数据库。');
+  console.error('  请先执行：cp .env.example .env');
+  console.error('  再在 .env 中填写 DB_HOST / DB_PORT / DB_USER / DB_PASSWORD / DB_NAME。');
+  console.error('  若不想配置 .env，可跳过本脚本，直接用 mysql 命令导入 SQL（见 README「① 准备数据库」）。');
+  process.exit(1);
+}
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST || '127.0.0.1',
@@ -21,8 +34,7 @@ const pool = mysql.createPool({
   multipleStatements: true,
 });
 
-const DEFAULT_FILES = ['db.sql', 'db-extend-common.sql', 'db-extend-enterprise.sql'];
-const files = process.argv.slice(2).length ? process.argv.slice(2) : DEFAULT_FILES;
+const files = process.argv.slice(2).length ? process.argv.slice(2) : SQL_FILES;
 
 async function main() {
   await pool.execute(

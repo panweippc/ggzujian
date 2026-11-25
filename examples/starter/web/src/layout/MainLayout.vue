@@ -21,6 +21,7 @@
         </div>
         <div class="top-right">
           <NotificationCenter class="top-notif" />
+          <LocaleSwitcher />
           <button type="button" class="top-icon-btn" title="主题/布局设置" @click="settingsVisible = true">
             <span class="act-ico">🎨</span>
           </button>
@@ -65,6 +66,7 @@ import DynamicSidebar from '../components/DynamicSidebar.vue';
 import NotificationCenter from '../components/NotificationCenter.vue';
 import TabBar from '../components/TabBar.vue';
 import SettingsDrawer from '../components/SettingsDrawer.vue';
+import LocaleSwitcher from '../components/LocaleSwitcher.vue';
 import { useUserStore } from '../stores/user';
 import { useGlobalSearch } from '../composables/useGlobalSearch';
 import { useRecycleBin } from '../composables/useRecycleBin';

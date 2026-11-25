@@ -20,6 +20,10 @@ import FileServiceView from './views/FileServiceView.vue';
 import MessageChannelView from './views/MessageChannelView.vue';
 import BaseDataView from './views/BaseDataView.vue';
 import ComponentDocsView from './views/ComponentDocsView.vue';
+import WorkflowView from './views/WorkflowView.vue';
+import PlatformView from './views/PlatformView.vue';
+import AIOpsView from './views/AIOpsView.vue';
+import LowCodeView from './views/LowCodeView.vue';
 
 const router = createRouter({
   history: createWebHistory(),
@@ -49,6 +53,10 @@ const router = createRouter({
         { path: 'message-channels', name: 'messageChannels', component: MessageChannelView, meta: { title: '消息通道' } },
         { path: 'base-data', name: 'baseData', component: BaseDataView, meta: { title: '基础数据' } },
         { path: 'component-docs', name: 'componentDocs', component: ComponentDocsView, meta: { title: '组件与接口文档' } },
+        { path: 'workflow', name: 'workflow', component: WorkflowView, meta: { title: '工作流' } },
+        { path: 'platform', name: 'platform', component: PlatformView, meta: { title: '平台能力' } },
+        { path: 'ai-ops', name: 'aiOps', component: AIOpsView, meta: { title: 'AI 运维' } },
+        { path: 'low-code', name: 'lowCode', component: LowCodeView, meta: { title: '低代码搭建' } },
       ]
     }
   ]
