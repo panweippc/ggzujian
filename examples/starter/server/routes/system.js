@@ -18,6 +18,7 @@ import {
   verifyPassword, hashPassword, validatePassword,
   generateRandomPassword, getOperator, createOperationLog
 } from '@panweippc/auth-kit';
+import { writeAudit } from '../middleware/audit.js';
 
 const router = express.Router();
 
@@ -51,9 +52,50 @@ const verifyAdminPassword = async (req, res, next) => {
   }
 };
 
+// ===== RBAC 执行层 =====
+// 权限加载：admin 全放行；非 admin 走 employees.roleId → roles → 权限表。
+// 用户不在 employees 表/未配角色时返回空权限（最小权限原则）。
+async function loadUserPerms(req) {
+  const { pool } = req.app.locals;
+  if (isAdmin(req)) {
+    return { isAdmin: true, role: 'admin', roleName: '系统管理员', menus: ['*'], buttons: ['*'], dataScope: 'all', department: '' };
+  }
+  const username = req.user?.name || req.user?.username || '';
+  const empty = { isAdmin: false, role: '', roleName: '', menus: [], buttons: [], dataScope: 'self', department: '' };
+  try {
+    const [[emp]] = await pool.execute('SELECT department, roleId FROM employees WHERE name = ? LIMIT 1', [username]);
+    if (!emp || !emp.roleId) return { ...empty, department: emp?.department || '' };
+    const [[role]] = await pool.execute('SELECT code, name, dataScope FROM roles WHERE id = ?', [emp.roleId]);
+    const [menuRows] = await pool.execute(
+      "SELECT m.path FROM role_permissions rp JOIN menus m ON m.id = rp.menuId WHERE rp.roleId = ? AND m.status = '启用' ORDER BY m.sort",
+      [emp.roleId]
+    );
+    const [btnRows] = await pool.execute('SELECT buttonKey FROM role_button_permissions WHERE roleId = ?', [emp.roleId]);
+    return {
+      isAdmin: false,
+      role: role?.code || '',
+      roleName: role?.name || '',
+      menus: menuRows.map((r) => r.path),
+      buttons: btnRows.map((r) => r.buttonKey),
+      dataScope: role?.dataScope || 'self',
+      department: emp.department || ''
+    };
+  } catch { return empty; }
+}
+
+// 接口级权限校验中间件（admin 全放行）；未配按钮权限则拒绝
+const requirePerm = (buttonKey) => async (req, res, next) => {
+  if (isAdmin(req)) return next();
+  const p = await loadUserPerms(req);
+  if (p.buttons.includes('*') || p.buttons.includes(buttonKey)) return next();
+  return res.status(403).json({ success: false, message: `无权限：${buttonKey}` });
+};
+
+export { loadUserPerms, requirePerm };
+
 const operator = (req) => getOperator(req) || req.user?.name || req.user?.username || '';
 const nowStr = () => new Date().toISOString().slice(0, 19).replace('T', ' ');
-const audit = (pool, req, fields) => createOperationLog(pool, {
+const audit = (pool, req, fields) => writeAudit(pool, req, {
   userId: String(req.user?.id || ''), username: operator(req), ipAddress: req.ip, ...fields
 }).catch(() => {});
 
@@ -66,6 +108,11 @@ const pushNotification = (pool, { recipient = '*', type = 'system', title, conte
     [recipient, type, title, content || '', link || null, nowStr()]
   ).catch((e) => console.error('[推送通知失败]', e.message));
 };
+
+// 当前登录用户的权限（前端路由守卫 / 按钮指令消费）
+router.get('/me/permissions', async (req, res) => {
+  res.json({ success: true, data: await loadUserPerms(req) });
+});
 
 // ==================== 部门 ====================
 router.get('/departments', async (req, res) => {
@@ -96,14 +143,14 @@ router.get('/roles/:id', async (req, res) => {
 
 router.post('/roles', adminOnly, verifyAdminPassword, async (req, res) => {
   const { pool } = req.app.locals;
-  const { name, code, description, status } = req.body;
+  const { name, code, description, status, dataScope } = req.body;
   if (!name || !code) return res.status(400).json({ success: false, message: '角色名称和编码不能为空' });
   try {
     const [exist] = await pool.execute('SELECT id FROM roles WHERE code = ?', [code]);
     if (exist.length) return res.status(400).json({ success: false, message: '角色编码已存在' });
     const [r] = await pool.execute(
-      'INSERT INTO roles (name, code, description, status, createdAt, updatedAt) VALUES (?,?,?,?,?,?)',
-      [name, code, description || '', status || '启用', nowStr(), nowStr()]
+      'INSERT INTO roles (name, code, description, status, dataScope, createdAt, updatedAt) VALUES (?,?,?,?,?,?,?)',
+      [name, code, description || '', status || '启用', dataScope || 'all', nowStr(), nowStr()]
     );
     audit(pool, req, { action: 'create', module: 'system', targetId: r.insertId, targetName: name, detail: `创建角色: ${name}` });
     res.json({ success: true, message: '角色创建成功', data: { id: r.insertId } });
@@ -112,10 +159,10 @@ router.post('/roles', adminOnly, verifyAdminPassword, async (req, res) => {
 
 router.put('/roles/:id', adminOnly, async (req, res) => {
   const { pool } = req.app.locals;
-  const { name, code, description, status } = req.body;
+  const { name, code, description, status, dataScope } = req.body;
   try {
     // 角色禁用时，把该角色下用户的 token_version +1，强制下线（适配 starter 的 token_version 字段）
-    const [[old]] = await pool.query('SELECT status FROM roles WHERE id = ?', [req.params.id]);
+    const [[old]] = await pool.query('SELECT status, dataScope FROM roles WHERE id = ?', [req.params.id]);
     if (old && old.status !== '禁用' && status === '禁用') {
       await pool.execute(
         `UPDATE users u JOIN employees e ON u.username = e.name
@@ -124,9 +171,17 @@ router.put('/roles/:id', adminOnly, async (req, res) => {
       );
     }
     await pool.execute(
-      'UPDATE roles SET name=?, code=?, description=?, status=?, updatedAt=? WHERE id=?',
-      [name, code, description || '', status || '启用', nowStr(), req.params.id]
+      'UPDATE roles SET name=?, code=?, description=?, status=?, dataScope=?, updatedAt=? WHERE id=?',
+      [name, code, description || '', status || '启用', dataScope || 'all', nowStr(), req.params.id]
     );
+    // 数据范围变更使该角色下所有用户 token 失效，重新登录后拉取最新权限
+    if (old && old.dataScope && dataScope && old.dataScope !== dataScope) {
+      await pool.execute(
+        `UPDATE users u JOIN employees e ON u.username = e.name
+         SET u.token_version = u.token_version + 1 WHERE e.roleId = ?`,
+        [req.params.id]
+      );
+    }
     audit(pool, req, { action: 'update', module: 'system', targetId: req.params.id, targetName: name, detail: `更新角色: ${name}` });
     res.json({ success: true, message: '角色更新成功' });
   } catch (e) { console.error('[更新角色失败]', e); res.status(500).json({ success: false, message: '更新角色失败' }); }
@@ -255,12 +310,43 @@ router.delete('/menus/:id', adminOnly, verifyAdminPassword, async (req, res) => 
   } catch (e) { res.status(500).json({ success: false, message: '删除菜单失败' }); }
 });
 
+// ==================== 数据权限：列级脱敏（与前端 utils/mask.ts 策略一致）====================
+const maskPhone = (v) => { const s = String(v ?? ''); return /^1\d{10}$/.test(s) ? s.replace(/^(\d{3})\d{4}(\d{4})$/, '$1****$2') : s; };
+const maskIdCard = (v) => { const s = String(v ?? ''); return s.length === 18 ? s.replace(/^(\d{6})\d{8}(\d{4})$/, '$1********$2') : s.length === 15 ? s.replace(/^(\d{6})\d{6}(\d{3})$/, '$1******$2') : s; };
+const maskEmail = (v) => {
+  const s = String(v ?? ''), at = s.indexOf('@');
+  if (at <= 0) return s;
+  const name = s.slice(0, at);
+  return name.charAt(0) + '*'.repeat(Math.max(1, name.length - 2)) + (name.length > 2 ? name.charAt(name.length - 1) : '') + s.slice(at);
+};
+// 按数据范围脱敏：admin=明文；dept/self=敏感列打码
+function maskEmployeeRow(row, scope) {
+  if (scope === 'all') return row;
+  return {
+    ...row,
+    phone: maskPhone(row.phone),
+    idCard: maskIdCard(row.idCard),
+    email: maskEmail(row.email),
+    emergencyPhone: maskPhone(row.emergencyPhone),
+    address: row.address ? String(row.address).slice(0, 6) + '…' : row.address,
+  };
+}
+
 // ==================== 用户管理（employees）====================
 router.get('/employees', async (req, res) => {
   try {
     const { pool } = req.app.locals;
-    const [rows] = await pool.execute('SELECT * FROM employees ORDER BY id');
-    res.json({ success: true, data: rows });
+    const perms = await loadUserPerms(req);
+    let sql = 'SELECT * FROM employees WHERE 1=1';
+    const args = [];
+    // 行级：按角色 dataScope 注入过滤条件
+    if (perms.dataScope === 'dept' && perms.department) { sql += ' AND department = ?'; args.push(perms.department); }
+    else if (perms.dataScope === 'self') { sql += ' AND name = ?'; args.push(req.user?.name || req.user?.username || ''); }
+    sql += ' ORDER BY id';
+    const [rows] = await pool.execute(sql, args);
+    // 列级：非全量范围脱敏敏感字段
+    const out = rows.map((r) => maskEmployeeRow(r, perms.dataScope));
+    res.json({ success: true, data: out, dataScope: perms.dataScope });
   } catch (e) { res.status(500).json({ success: false, message: '获取用户列表失败' }); }
 });
 

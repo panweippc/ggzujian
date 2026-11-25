@@ -116,6 +116,31 @@ cd web && npm i && npm run dev   # 监听 3008，/api 代理到 3011
 | 敏感信息脱敏 | `utils/mask.ts` | maskPhone/maskIdCard/maskEmail/maskName/maskBankCard/maskIp 纯函数 |
 | 安全事件监控 | `views/SecurityAlertView.vue` + `GET /api/security-alerts` | 读 auth-kit 写的 `logs/security-alert.log`，按级别/类型筛选 + 统计，管理员可见 |
 
+### RBAC 权限执行层（已落地，配了就生效）
+
+| 能力 | 位置 | 说明 |
+|---|---|---|
+| 权限上下文接口 | `GET /api/me/permissions` | 返回当前用户 `isAdmin/menus/buttons/dataScope/department`，admin 全放行；非 admin 走 `employees.roleId → roles → 权限表` |
+| 菜单权限 | `stores/user.ts` `canVisit()` + `router.ts` 守卫 + `DynamicSidebar` | 路由守卫按角色菜单权限过滤，侧边栏同步隐藏；`/profile` 等个人路由不受限，避免锁死 |
+| 按钮权限 | `v-perm` 指令（`main.ts` 注册） | `<el-button v-perm="'system:menu:create'">`，无权限元素直接移除；按钮清单在 `PermissionManagementTab.vue` 的 `BUTTON_DEFS` |
+| 接口级权限 | `routes/system.js` `requirePerm(key)` | 后端中间件工厂，admin 放行、非 admin 校验按钮权限；管理类接口本身有 `adminOnly` 兜底 |
+| 菜单/权限管理 UI | `components/MenuManagementTab.vue` / `PermissionManagementTab.vue` | 菜单 CRUD + 角色勾选菜单权限 + 按钮权限（高危带二次密码），系统管理页两个 tab 已接入 |
+
+> 权限数据来源：`roles` / `role_permissions` / `role_button_permissions` / `menus` 四张表，演示数据（10 个菜单 + 普通员工/部门经理的菜单权限）在 `db-extend-system.sql`。**表里的配置会真正影响可见页面和按钮**，不再只是摆设。
+
+### 数据权限（行级 + 列级）
+
+- **行级**：`roles.dataScope` = `all`（全部）/ `dept`（本部门）/ `self`（仅本人）。`GET /api/employees` 按当前用户角色的范围自动注入 `WHERE` 条件，非 admin 只能看到范围内数据。
+- **列级**：非 `all` 范围时，手机号/身份证/邮箱/紧急联系人/地址自动脱敏（后端 `maskEmployeeRow`，策略与前端 `utils/mask.ts` 一致）。
+- **改角色数据范围**：在角色管理编辑弹窗里切换，保存后会提升该角色下所有用户的 `token_version` 强制重新登录，确保权限立即刷新。
+
+### 配置中心（多环境 + 版本回滚）
+
+- **多环境**：配置带 `env`（dev/test/prod），接口 `?env=xxx` 过滤，页面顶栏切换；同一 configKey 在不同环境值互相隔离（联合唯一键 `configKey+env`）。
+- **版本历史**：每次增删改自动写 `config_history` 快照，`version` 递增；`GET /api/configs/:key/history?env=xxx` 查历史。
+- **一键回滚**：`POST /api/configs/:key/rollback`（body `{version, env}`）把配置恢复到指定版本，并生成新版本记录；页面「历史/回滚」弹窗可直接操作。
+- **读时生效**：后端业务（如 IP 白名单开关）每次请求实时读表，改配置无需重启。
+
 ### 消息通知中心（全栈自带，可直接用）
 
 - **后端**：`notifications`（通知）+ `notifications_reads`（广播按人已读）两张表在 `db-extend-system.sql`；接口 `GET /notifications`、`GET /notifications/unread-count`、`POST /notifications/:id/read`、`POST /notifications/read-all` 在 `routes/system.js`，受登录保护。
@@ -161,5 +186,30 @@ cd web && npm i && npm run dev   # 监听 3008，/api 代理到 3011
 | 配置中心 | `views/ConfigView.vue` | key-value 配置增删改，改后立即影响后端逻辑 |
 | 定时任务 | `views/TaskView.vue` | 任务注册表 + 启停开关（真实调度由 pm2 cron 兜底） |
 | 接口文档 | `views/ApiDocsView.vue` | 零依赖接口清单，按模块分组 + 搜索 |
+| 文件服务 | `views/FileServiceView.vue` | 统一上传/下载/预览/列表/删除，本地存储 + 对象存储适配位 |
+| 消息通道 | `views/MessageChannelView.vue` | 站内信/邮件/短信/微信统一发送入口，未配外部资源走控制台适配器 |
+
+### 底座能力：网关 / 全链路日志 / 文件与消息
+
+**统一网关**（`server/middleware/gateway.js`，全局生效）
+- CORS + JWT 前置鉴权 + 天气接口服务端转发
+- 全局限流（默认 300 次/分）+ 写操作分级限流（60 次/分）+ 登录独立限流（15 分钟 10 次，第 11 次起 429）；`/health` 等探针接口白名单放行
+- 可通过 `.env` 调：`RATE_MAX` / `RATE_WINDOW_MS` / `WRITE_RATE_MAX` / `LOGIN_RATE_MAX`
+
+**全链路 Trace ID**
+- 每个请求自动分配 `X-Request-Id`（支持上游透传），响应头回传；前端响应拦截器自动捕获
+- 操作日志表新增 `traceId` / `requestBody` / `responseResult` / `durationMs` 四列（敏感字段自动打码）
+- 操作日志页可按 Trace ID 检索，展开可见请求参数、响应结果、耗时；慢接口（>800ms，`SLOW_REQUEST_MS` 可调）自动写安全告警
+
+**统一文件服务**（`server/routes/files.js`）
+- 接口：`POST /files/upload`、`GET /files`、`GET /files/:key/preview`、`GET /files/:key/download`、`DELETE /files/:key`
+- 扩展名白名单 + 20MB 大小限制（`FILE_MAX_SIZE` 可调）；元数据入 `file_objects` 表
+- 底层存储由 `STORAGE_DRIVER` 决定（默认 `local`），预留 `minio`/`oss` 适配位——切换驱动不改任何业务接口
+
+**统一消息通道**（`server/services/message-channels.js` + `server/routes/messages.js`）
+- 一个 `sendMessage({ channel, to, title, content })` 覆盖 站内信/邮件/短信/微信
+- 站内信已实现（写 notifications 表）；其余三通道：填了对应 `.env` 走真实服务，没填走**控制台适配器**（消息写入 `logs/message-center.log`，不丢）
+- 启用真实通道只需在 `.env` 配：`SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS`、`SMS_API_URL/SMS_API_KEY/SMS_SIGN`、`WECHAT_WEBHOOK`，无需改代码
+- 消息通道页可查看各通道就绪状态、发送测试消息、查发送日志
 
 > 更详细的逐步骤讲解、原理和常见坑，见 [../../docs/新项目接入指南.md](../../docs/新项目接入指南.md)。

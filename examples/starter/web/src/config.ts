@@ -59,6 +59,8 @@ export const SIDE_MENUS = [
   { id: 8, name: '配置中心', path: '/config', icon: 'sliders' },
   { id: 9, name: '定时任务', path: '/tasks', icon: 'clock' },
   { id: 10, name: '接口文档', path: '/api-docs', icon: 'book' },
+  { id: 11, name: '文件服务', path: '/files', icon: 'folder' },
+  { id: 12, name: '消息通道', path: '/message-channels', icon: 'bell' },
 ];
 
 // ============ 系统管理 - Tab 配置 ============
@@ -68,8 +70,8 @@ export const SIDE_MENUS = [
 export const SYSTEM_TABS = [
   { name: 'roles', label: '角色管理', icon: '👥', implemented: true },
   { name: 'users', label: '用户管理', icon: '👤', implemented: true },
-  { name: 'menus', label: '菜单管理', icon: '📋', implemented: false },
-  { name: 'permissions', label: '权限管理', icon: '🔐', implemented: false },
+  { name: 'menus', label: '菜单管理', icon: '📋', implemented: true },
+  { name: 'permissions', label: '权限管理', icon: '🔐', implemented: true },
   { name: 'backup', label: '数据备份', icon: '💾', implemented: true },
 ];
 

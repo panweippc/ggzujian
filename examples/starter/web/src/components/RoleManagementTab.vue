@@ -51,6 +51,14 @@
         <el-form-item label="描述">
           <el-input v-model="roleForm.description" type="textarea" placeholder="请输入角色描述" />
         </el-form-item>
+        <el-form-item label="数据范围">
+          <el-radio-group v-model="roleForm.dataScope">
+            <el-radio label="all">全部数据</el-radio>
+            <el-radio label="dept">本部门</el-radio>
+            <el-radio label="self">仅本人</el-radio>
+          </el-radio-group>
+          <div class="field-tip">控制该角色能看到的数据行（行级权限），保存后立即生效</div>
+        </el-form-item>
         <el-form-item label="状态">
           <el-radio-group v-model="roleForm.status">
             <el-radio label="启用">启用</el-radio>
@@ -86,6 +94,7 @@ const roleForm = ref({
   name: '',
   code: '',
   description: '',
+  dataScope: 'all',
   status: '启用'
 })
 
@@ -120,7 +129,7 @@ const loadRoles = async () => {
 
 const openAddRoleDialog = () => {
   isEditingRole.value = false
-  roleForm.value = { id: null, name: '', code: '', description: '', status: '启用' }
+  roleForm.value = { id: null, name: '', code: '', description: '', dataScope: 'all', status: '启用' }
   roleDialogVisible.value = true
 }
 
@@ -212,6 +221,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.field-tip { font-size: 12px; color: #909399; margin-top: 4px; line-height: 1.5; }
 .management-section {
   background: rgba(255, 255, 255, 0.9);
   border: 1px solid rgba(30, 90, 168, 0.2);

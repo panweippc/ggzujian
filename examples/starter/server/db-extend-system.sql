@@ -19,9 +19,17 @@ CREATE TABLE IF NOT EXISTS roles (
   code VARCHAR(50) NOT NULL UNIQUE,
   description TEXT,
   status VARCHAR(20) NOT NULL DEFAULT '启用',
+  dataScope VARCHAR(20) NOT NULL DEFAULT 'all' COMMENT '数据范围: all=全部 dept=本部门 self=仅本人',
   createdAt DATETIME NOT NULL,
   updatedAt DATETIME NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 幂等补列：老库 roles 无 dataScope 时自动加
+SET @has_scope = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'roles' AND COLUMN_NAME = 'dataScope');
+SET @add_scope = IF(@has_scope = 0, 'ALTER TABLE roles ADD COLUMN dataScope VARCHAR(20) NOT NULL DEFAULT ''all'' COMMENT ''数据范围: all/dept/self''', 'SELECT 1');
+PREPARE stmt_scope FROM @add_scope;
+EXECUTE stmt_scope;
+DEALLOCATE PREPARE stmt_scope;
 
 CREATE TABLE IF NOT EXISTS employees (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -85,15 +93,40 @@ INSERT IGNORE INTO departments (id, name, code, description, status, createdAt, 
 (4, '人力资源部', 'hr', '负责人力资源和员工培训', '启用', NOW(), NOW()),
 (5, '管理部门', 'management', '公司管理层', '启用', NOW(), NOW());
 
-INSERT IGNORE INTO roles (id, name, code, description, status, createdAt, updatedAt) VALUES
-(1, '系统管理员', 'admin', '系统超级管理员，拥有所有权限', '启用', NOW(), NOW()),
-(2, '普通员工', 'employee', '普通员工角色', '启用', NOW(), NOW()),
-(3, '部门经理', 'manager', '部门管理角色', '启用', NOW(), NOW());
+INSERT IGNORE INTO roles (id, name, code, description, status, dataScope, createdAt, updatedAt) VALUES
+(1, '系统管理员', 'admin', '系统超级管理员，拥有所有权限', '启用', 'all', NOW(), NOW()),
+(2, '普通员工', 'employee', '普通员工角色', '启用', 'self', NOW(), NOW()),
+(3, '部门经理', 'manager', '部门管理角色', '启用', 'dept', NOW(), NOW());
 
+-- 幂等刷新 dataScope（老库 IGNORE 不会覆盖已存在角色，需显式 UPDATE 一次）
+UPDATE roles SET dataScope = CASE code
+  WHEN 'admin' THEN 'all' WHEN 'employee' THEN 'self' WHEN 'manager' THEN 'dept'
+  ELSE dataScope END
+WHERE code IN ('admin','employee','manager') AND dataScope = 'all' AND code <> 'admin';
+
+-- 菜单：与前端 SIDE_MENUS 的 10 个路由对齐（id 必须一致，权限分配靠 menuId）
 INSERT IGNORE INTO menus (id, parentId, name, path, component, icon, sort, status, createdAt, updatedAt) VALUES
 (1, 0, '工作台', '/', 'HomeView', 'home', 1, '启用', NOW(), NOW()),
-(2, 0, '系统管理', '/system', 'SystemManagementView', 'setting', 2, '启用', NOW(), NOW()),
-(3, 0, '操作日志', '/logs', 'OperationLogView', 'clipboard', 3, '启用', NOW(), NOW());
+(2, 0, '消息中心', '/messages', 'MessageCenterView', 'email', 2, '启用', NOW(), NOW()),
+(3, 0, '操作日志', '/logs', 'OperationLogView', 'clipboard', 3, '启用', NOW(), NOW()),
+(4, 0, '系统管理', '/system', 'SystemManagementView', 'setting', 4, '启用', NOW(), NOW()),
+(5, 0, '安全设置', '/security', 'SecuritySettingsView', 'key', 5, '启用', NOW(), NOW()),
+(6, 0, '公共组件', '/components', 'ComponentsView', 'quality', 6, '启用', NOW(), NOW()),
+(7, 0, '系统监控', '/monitor', 'MonitorView', 'monitor', 7, '启用', NOW(), NOW()),
+(8, 0, '配置中心', '/config', 'ConfigView', 'sliders', 8, '启用', NOW(), NOW()),
+(9, 0, '定时任务', '/tasks', 'TaskView', 'clock', 9, '启用', NOW(), NOW()),
+(10, 0, '接口文档', '/api-docs', 'ApiDocsView', 'book', 10, '启用', NOW(), NOW()),
+(11, 0, '文件服务', '/files', 'FileServiceView', 'folder', 11, '启用', NOW(), NOW()),
+(12, 0, '消息通道', '/message-channels', 'MessageChannelView', 'bell', 12, '启用', NOW(), NOW());
+
+-- 演示权限：普通员工可见工作台/消息/日志；部门经理多给系统管理/监控
+INSERT IGNORE INTO role_permissions (roleId, menuId, createdAt) VALUES
+(2, 1, NOW()), (2, 2, NOW()), (2, 3, NOW()),
+(3, 1, NOW()), (3, 2, NOW()), (3, 3, NOW()), (3, 4, NOW()), (3, 7, NOW());
+
+-- 老库校正：id=2 若仍是旧值「系统管理」则改回「消息中心」（仅此一次，不覆盖用户后续修改）
+UPDATE menus SET name='消息中心', path='/messages', component='MessageCenterView', icon='email', sort=2, updatedAt=NOW()
+WHERE id=2 AND path='/system';
 
 -- 演示员工：admin 对应 starter 的登录账号；其余为纯资料展示
 INSERT IGNORE INTO employees (id, name, department, position, email, phone, entryDate, createdAt, status, employeeType, roleId) VALUES

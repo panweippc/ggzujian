@@ -28,30 +28,36 @@
       </div>
 
       <div class="tab-content">
-        <!-- 已接真实接口的三块：用户/角色/备份 -->
+        <!-- 已接真实接口：用户/角色/菜单/权限/备份 -->
         <UserManagementTab v-if="activeTab === 'users'" />
-        <RoleManagementTab v-else-if="activeTab === 'roles'" />
+        <RoleManagementTab v-else-if="activeTab === 'roles'" @assign-permissions="goPermissions" />
+        <MenuManagementTab v-else-if="activeTab === 'menus'" />
+        <PermissionManagementTab v-else-if="activeTab === 'permissions'" :initial-role-id="permRoleId" />
         <BackupManagementTab v-else-if="activeTab === 'backup'" />
-        <!-- 菜单/权限 tab：qygl 接口已迁移，UI 骨架待接 -->
-        <el-empty v-else :description="`「${currentTabLabel}」接口已就绪，UI 待接入`">
-          <el-tag size="small" type="info" effect="plain">接口已迁移</el-tag>
-        </el-empty>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import UserManagementTab from '../components/UserManagementTab.vue';
 import RoleManagementTab from '../components/RoleManagementTab.vue';
+import MenuManagementTab from '../components/MenuManagementTab.vue';
+import PermissionManagementTab from '../components/PermissionManagementTab.vue';
 import BackupManagementTab from '../components/BackupManagementTab.vue';
 import { SYSTEM_TABS, SYSTEM_PAGE } from '../config';
 
 const systemTabs = SYSTEM_TABS;
 const systemPage = SYSTEM_PAGE;
 const activeTab = ref(SYSTEM_TABS[0]?.name || 'roles');
-const currentTabLabel = computed(() => systemTabs.find((t) => t.name === activeTab.value)?.label || '');
+const permRoleId = ref<number | null>(null);
+
+// 角色列表点「权限」→ 切到权限管理 tab 并选中该角色
+function goPermissions(role: any) {
+  permRoleId.value = role.id;
+  activeTab.value = 'permissions';
+}
 </script>
 
 <style scoped>

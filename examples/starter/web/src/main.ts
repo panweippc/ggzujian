@@ -11,6 +11,7 @@ import {
 } from '@panweippc/admin-ui/utils';
 import App from './App.vue';
 import router from './router';
+import { useUserStore } from './stores/user';
 
 // token 存储（key 与 services/api.ts、stores/user.ts 保持一致：token）
 const store = createTokenStore({ access: 'token', refresh: 'refreshToken' });
@@ -30,4 +31,15 @@ startIdleDetector({
   onTimeout: () => store.clear()
 });
 
-createApp(App).use(createPinia()).use(router).use(ElementPlus, { locale: zhCn }).mount('#app');
+const app = createApp(App);
+const pinia = createPinia();
+app.use(pinia).use(router).use(ElementPlus, { locale: zhCn });
+
+// v-perm 按钮级权限指令：无权限则移除元素（admin 全放行）
+app.directive('perm', {
+  mounted(el, binding) {
+    if (binding.value && !useUserStore(pinia).can(binding.value)) el.parentNode?.removeChild(el);
+  }
+});
+
+app.mount('#app');

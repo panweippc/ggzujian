@@ -26,23 +26,51 @@ INSERT IGNORE INTO dict_items (category, label, value, sort, remark) VALUES
 ('order_status', '处理中', 'processing', 2, '演示字典'),
 ('order_status', '已完成', 'done', 3, '演示字典');
 
--- 2) 配置中心：key-value 配置，JSON 值
+-- 2) 配置中心：key-value 配置，JSON 值；支持多环境 + 版本历史
 CREATE TABLE IF NOT EXISTS app_configs (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  configKey VARCHAR(128) NOT NULL UNIQUE COMMENT '配置键，如 site.name',
+  configKey VARCHAR(128) NOT NULL COMMENT '配置键，如 site.name',
   configValue TEXT COMMENT '配置值（JSON 或纯文本）',
   category VARCHAR(64) NOT NULL DEFAULT 'system',
+  env VARCHAR(16) NOT NULL DEFAULT 'dev' COMMENT '环境: dev/test/prod',
   description VARCHAR(255) DEFAULT NULL,
+  version INT NOT NULL DEFAULT 1 COMMENT '当前版本号',
   updatedBy VARCHAR(64) DEFAULT NULL,
   updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_cfg_key_env (configKey, env),
   INDEX idx_cfg_cat (category)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT IGNORE INTO app_configs (configKey, configValue, category, description) VALUES
-('site.name', '"我的管理系统"', 'system', '站点名称'),
-('site.theme', '"purple-blue"', 'system', '默认主题'),
-('security.loginLockAttempts', '5', 'security', '登录失败锁定阈值'),
-('security.loginLockMinutes', '15', 'security', '锁定时长（分钟）');
+-- 幂等迁移：老库单列 UNIQUE(configKey) → 联合唯一 (configKey, env) + 补 env/version 列
+SET @has_env = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'app_configs' AND COLUMN_NAME = 'env');
+SET @add_env = IF(@has_env = 0, 'ALTER TABLE app_configs ADD COLUMN env VARCHAR(16) NOT NULL DEFAULT ''dev''', 'SELECT 1');
+PREPARE stmt_env FROM @add_env; EXECUTE stmt_env; DEALLOCATE PREPARE stmt_env;
+SET @has_ver = (SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'app_configs' AND COLUMN_NAME = 'version');
+SET @add_ver = IF(@has_ver = 0, 'ALTER TABLE app_configs ADD COLUMN version INT NOT NULL DEFAULT 1', 'SELECT 1');
+PREPARE stmt_ver FROM @add_ver; EXECUTE stmt_ver; DEALLOCATE PREPARE stmt_ver;
+SET @has_old_unique = (SELECT COUNT(*) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'app_configs' AND INDEX_NAME = 'configKey');
+SET @drop_old = IF(@has_old_unique > 0, 'ALTER TABLE app_configs DROP INDEX configKey, ADD UNIQUE KEY uk_cfg_key_env (configKey, env)', 'SELECT 1');
+PREPARE stmt_old FROM @drop_old; EXECUTE stmt_old; DEALLOCATE PREPARE stmt_old;
+
+-- 配置版本历史：每次变更写快照，支持一键回滚
+CREATE TABLE IF NOT EXISTS config_history (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  configKey VARCHAR(128) NOT NULL,
+  env VARCHAR(16) NOT NULL DEFAULT 'dev',
+  version INT NOT NULL,
+  configValue TEXT,
+  description VARCHAR(255) DEFAULT NULL,
+  operation VARCHAR(16) NOT NULL COMMENT 'create/update/delete/rollback',
+  operator VARCHAR(64) DEFAULT NULL,
+  createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_hist_key_env (configKey, env, version)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT IGNORE INTO app_configs (configKey, configValue, category, env, description) VALUES
+('site.name', '"我的管理系统"', 'system', 'dev', '站点名称'),
+('site.theme', '"purple-blue"', 'system', 'dev', '默认主题'),
+('security.loginLockAttempts', '5', 'security', 'dev', '登录失败锁定阈值'),
+('security.loginLockMinutes', '15', 'security', 'dev', '锁定时长（分钟）');
 
 -- 3) 定时任务：任务注册表（真正的执行由 pm2 cron / node-cron 兜底，本表做展示与开关）
 CREATE TABLE IF NOT EXISTS scheduled_tasks (
@@ -90,4 +118,18 @@ CREATE TABLE IF NOT EXISTS user_totp (
   enabled TINYINT NOT NULL DEFAULT 0,
   createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   enabledAt DATETIME DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 7) 统一文件服务：文件元数据（底层存储由 STORAGE_DRIVER 决定，业务只见此表）
+CREATE TABLE IF NOT EXISTS file_objects (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  objectKey VARCHAR(255) NOT NULL UNIQUE COMMENT '存储键（local 为文件名，minio/oss 为对象 key）',
+  originalName VARCHAR(255) NOT NULL COMMENT '原始文件名',
+  mimeType VARCHAR(128) DEFAULT NULL,
+  size BIGINT DEFAULT 0,
+  driver VARCHAR(32) NOT NULL DEFAULT 'local' COMMENT '存储驱动 local/minio/oss',
+  url VARCHAR(512) DEFAULT NULL COMMENT '可访问 URL',
+  uploadedBy VARCHAR(64) DEFAULT NULL,
+  createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_file_created (createdAt)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

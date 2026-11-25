@@ -15,6 +15,12 @@ import {
 } from '@panweippc/auth-kit';
 import systemRouter from './routes/system.js';
 import commonRouter from './routes/common.js';
+import fileRouter from './routes/files.js';
+import messageRouter from './routes/messages.js';
+import {
+  traceMiddleware, auditContextMiddleware, timingMiddleware, createRateLimiters, createLoginLimiter
+} from './middleware/gateway.js';
+import { writeAudit } from './middleware/audit.js';
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST || '127.0.0.1',
@@ -59,9 +65,23 @@ const { requireAuth } = createRequireAuth({
 const app = express();
 // 供路由模块共享数据库连接池（qygl 约定：req.app.locals.pool）
 app.locals.pool = pool;
-app.use(cors());
-app.use(express.json());
-// 静态托管上传的头像（个人中心用）
+app.locals.alert = alert; // 供网关慢接口告警 / 消息中心复用
+// ⭐ 统一网关（底座第3部分）：CORS → TraceID → 限流 → 计时 → 审计上下文 → body 解析
+// 暴露 X-Request-Id 给前端，便于全链路检索
+app.use(cors({ exposedHeaders: ['X-Request-Id', 'Retry-After'] }));
+app.use(traceMiddleware);
+app.use(createRateLimiters());
+app.use(timingMiddleware((rec) => {
+  // 慢接口告警：走现有安全告警通道（有 webhook 就推，没有只落日志文件）
+  alert.writeSecurityAlert({
+    level: 'WARN', type: 'slow_request',
+    detail: `${rec.method} ${rec.path} 耗时 ${rec.ms}ms (阈值 ${process.env.SLOW_REQUEST_MS || 800}ms)`,
+    ip: rec.ip, traceId: rec.traceId,
+  });
+}));
+app.use(express.json({ limit: '10mb' }));
+app.use(auditContextMiddleware);
+// 静态托管上传的文件（头像 + 统一文件服务）
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // —— 公开接口 ——
@@ -98,7 +118,7 @@ const failKey = (u, ip) => `${u}|${ip}`;
 const cleanFails = () => { const now = Date.now(); for (const [k, v] of loginFails) if (v.lockedUntil && v.lockedUntil < now && now - v.firstAt > LOGIN_LOCK_MS * 2) loginFails.delete(k); };
 setInterval(cleanFails, 60_000).unref?.();
 
-app.post('/api/login', async (req, res) => {
+app.post('/api/login', createLoginLimiter(), async (req, res) => {
   const { username, password, captcha: code, captchaToken } = req.body;
   const c = captcha.verify(captchaToken, code);
   if (c === 'expired') return res.status(401).json({ success: false, message: '验证码已过期' });
@@ -133,7 +153,9 @@ app.post('/api/login', async (req, res) => {
     id: user.id, username: user.username, password: user.password,
     roleName: user.role, tokenVersion: user.token_version || 0
   }));
-  await audit.createOperationLog(pool, { userId: user.id, username: user.username, action: 'login', module: 'auth', ipAddress: req.ip });
+  await writeAudit(pool, req, {
+    userId: user.id, username: user.username, action: 'login', module: 'auth', ipAddress: req.ip,
+  }).catch(() => {});
   res.json({ success: true, data: { token, username: user.username, role: user.role } });
 });
 
@@ -146,7 +168,7 @@ app.post('/api/users', requireAuth, async (req, res) => {
     'INSERT INTO users(username, password, role, token_version) VALUES(?,?,?,0)',
     [username, hashPassword(password), role || 'user']
   );
-  await audit.createOperationLog(pool, { username: req.user.name, action: 'create_user', module: 'user', targetName: username });
+  await writeAudit(pool, req, { action: 'create_user', module: 'user', targetName: username });
   res.json({ success: true, message: '创建成功' });
 });
 
@@ -178,6 +200,10 @@ app.use('/api', systemRouter);
 // 公共组件接口（字典/配置/定时任务/会话/IP白名单/监控/TOTP）
 app.use('/api', commonRouter);
 
+// 统一文件服务（本地存储 + 对象存储预留适配层）与统一消息通道（B档预留）
+app.use('/api', fileRouter);
+app.use('/api', messageRouter);
+
 // 头像读取是公开静态资源，个人中心 <el-avatar> 直接加载，无需 token
 // （上传接口在 systemRouter 内，受 requireAuth 保护）
 
@@ -187,10 +213,11 @@ app.get('/api/users', async (req, res) => {
 });
 
 app.get('/api/logs', async (req, res) => {
-  const { module, action, page = 1, pageSize = 30 } = req.query;
+  const { module, action, traceId, page = 1, pageSize = 30 } = req.query;
   const clauses = [], params = [];
   if (module) { clauses.push('module = ?'); params.push(module); }
   if (action) { clauses.push('action = ?'); params.push(action); }
+  if (traceId) { clauses.push('traceId = ?'); params.push(String(traceId).slice(0, 64)); }
   const where = clauses.length ? 'WHERE ' + clauses.join(' AND ') : '';
   const offset = (Number(page) - 1) * Number(pageSize);
   const [[{ total }]] = await pool.execute(`SELECT COUNT(*) total FROM operation_logs ${where}`, params);

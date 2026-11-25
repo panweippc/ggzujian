@@ -7,6 +7,8 @@ import express from 'express';
 import os from 'os';
 import crypto from 'crypto';
 import { getOperator, createOperationLog } from '@panweippc/auth-kit';
+import { writeAudit } from '../middleware/audit.js';
+import { getGatewayStats } from '../middleware/gateway.js';
 
 const router = express.Router();
 const ADMIN_ROLES = ['admin', '系统管理员', '总经理'];
@@ -18,7 +20,7 @@ const isAdmin = (req) => {
 const adminOnly = (req, res, next) => isAdmin(req) ? next() : res.status(403).json({ success: false, message: '无权限，仅管理员可操作' });
 const poolOf = (req) => req.app.locals.pool;
 const audit = (req, action, module, detail, targetName = '') =>
-  createOperationLog(poolOf(req), {
+  writeAudit(poolOf(req), req, {
     userId: String(req.user?.id || ''), username: getOperator(req), ipAddress: req.ip,
     action, module, detail, targetName
   }).catch(() => {});
@@ -67,47 +69,134 @@ router.delete('/dict-items/:id', adminOnly, async (req, res) => {
   } catch (e) { res.status(500).json({ success: false, message: '删除失败' }); }
 });
 
-// ==================== 配置中心 ====================
+// ==================== 配置中心（多环境 + 版本历史 + 回滚） ====================
+const curEnv = (req) => String(req.query.env || req.body?.env || process.env.NODE_ENV || 'dev');
+
+// 写版本快照（内部工具）：把变更后的值记一条历史
+async function writeConfigHistory(pool, { configKey, env, version, configValue, description, operation, operator }) {
+  await pool.execute(
+    'INSERT INTO config_history (configKey, env, version, configValue, description, operation, operator) VALUES (?,?,?,?,?,?,?)',
+    [configKey, env, version, configValue ?? '', description ?? null, operation, operator || '']
+  );
+}
+
 router.get('/configs', adminOnly, async (req, res) => {
   try {
-    const { category } = req.query;
-    const [rows] = category
-      ? await poolOf(req).execute('SELECT * FROM app_configs WHERE category=? ORDER BY configKey', [category])
-      : await poolOf(req).execute('SELECT * FROM app_configs ORDER BY category, configKey');
+    const { category, all } = req.query;
+    // all=1 返回全部环境（兼容老调用）；否则按 env 过滤
+    const env = curEnv(req);
+    let sql = all === '1' ? 'SELECT * FROM app_configs WHERE 1=1' : 'SELECT * FROM app_configs WHERE env=?';
+    const args = all === '1' ? [] : [env];
+    if (category) { sql += ' AND category=?'; args.push(category); }
+    sql += ' ORDER BY category, configKey';
+    const [rows] = await poolOf(req).execute(sql, args);
     res.json({ success: true, data: rows });
   } catch (e) { res.status(500).json({ success: false, message: '读取配置失败' }); }
 });
+
 router.put('/configs/:key', adminOnly, async (req, res) => {
   const username = req.user?.name || req.user?.username || '';
   const { configValue, description } = req.body || {};
+  const env = curEnv(req);
+  const pool = poolOf(req);
   try {
-    await poolOf(req).execute(
-      'UPDATE app_configs SET configValue=?, updatedBy=?, description=COALESCE(?,description) WHERE configKey=?',
-      [configValue === undefined ? '' : String(configValue), username, description ?? null, req.params.key]
+    const [[old]] = await pool.execute('SELECT configValue, description, version FROM app_configs WHERE configKey=? AND env=?', [req.params.key, env]);
+    if (!old) return res.status(404).json({ success: false, message: '该环境下配置不存在' });
+    const nextVer = (old.version || 1) + 1;
+    await pool.execute(
+      'UPDATE app_configs SET configValue=?, version=?, updatedBy=?, description=COALESCE(?,description) WHERE configKey=? AND env=?',
+      [configValue === undefined ? '' : String(configValue), nextVer, username, description ?? null, req.params.key, env]
     );
-    audit(req, 'update', 'config', `修改配置 ${req.params.key}`, req.params.key);
-    res.json({ success: true });
+    await writeConfigHistory(pool, {
+      configKey: req.params.key, env, version: nextVer,
+      configValue: configValue === undefined ? '' : String(configValue),
+      description: description ?? old.description, operation: 'update', operator: username
+    });
+    audit(req, 'update', 'config', `修改配置 ${req.params.key} (${env}) v${nextVer}`, req.params.key);
+    res.json({ success: true, data: { version: nextVer } });
   } catch (e) { res.status(500).json({ success: false, message: '保存配置失败' }); }
 });
+
 router.post('/configs', adminOnly, async (req, res) => {
   const username = req.user?.name || req.user?.username || '';
   const { configKey, configValue, category = 'system', description = '' } = req.body || {};
+  const env = curEnv(req);
+  const pool = poolOf(req);
   if (!configKey) return res.status(400).json({ success: false, message: '配置键必填' });
   try {
-    await poolOf(req).execute(
-      'INSERT INTO app_configs (configKey,configValue,category,description,updatedBy) VALUES (?,?,?,?,?)',
-      [configKey, String(configValue ?? ''), category, description, username]
+    await pool.execute(
+      'INSERT INTO app_configs (configKey,configValue,category,env,description,version,updatedBy) VALUES (?,?,?,?,?,1,?)',
+      [configKey, String(configValue ?? ''), category, env, description, username]
     );
-    audit(req, 'create', 'config', `新增配置 ${configKey}`, configKey);
+    await writeConfigHistory(pool, {
+      configKey, env, version: 1, configValue: String(configValue ?? ''),
+      description, operation: 'create', operator: username
+    });
+    audit(req, 'create', 'config', `新增配置 ${configKey} (${env})`, configKey);
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ success: false, message: '新增配置失败' }); }
+  } catch (e) {
+    if (e.code === 'ER_DUP_ENTRY') return res.status(400).json({ success: false, message: '该环境下配置键已存在' });
+    res.status(500).json({ success: false, message: '新增配置失败' });
+  }
 });
+
 router.delete('/configs/:key', adminOnly, async (req, res) => {
+  const username = req.user?.name || req.user?.username || '';
+  const env = curEnv(req);
+  const pool = poolOf(req);
   try {
-    await poolOf(req).execute('DELETE FROM app_configs WHERE configKey=?', [req.params.key]);
-    audit(req, 'delete', 'config', `删除配置 ${req.params.key}`, req.params.key);
+    const [[old]] = await pool.execute('SELECT version, configValue, description FROM app_configs WHERE configKey=? AND env=?', [req.params.key, env]);
+    if (!old) return res.status(404).json({ success: false, message: '该环境下配置不存在' });
+    await pool.execute('DELETE FROM app_configs WHERE configKey=? AND env=?', [req.params.key, env]);
+    await writeConfigHistory(pool, {
+      configKey: req.params.key, env, version: (old.version || 1) + 1,
+      configValue: old.configValue, description: old.description, operation: 'delete', operator: username
+    });
+    audit(req, 'delete', 'config', `删除配置 ${req.params.key} (${env})`, req.params.key);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ success: false, message: '删除配置失败' }); }
+});
+
+// 配置变更历史
+router.get('/configs/:key/history', adminOnly, async (req, res) => {
+  const env = curEnv(req);
+  try {
+    const [rows] = await poolOf(req).execute(
+      'SELECT * FROM config_history WHERE configKey=? AND env=? ORDER BY version DESC LIMIT 50',
+      [req.params.key, env]
+    );
+    res.json({ success: true, data: rows });
+  } catch (e) { res.status(500).json({ success: false, message: '读取历史失败' }); }
+});
+
+// 一键回滚：把配置恢复到指定历史版本
+router.post('/configs/:key/rollback', adminOnly, async (req, res) => {
+  const username = req.user?.name || req.user?.username || '';
+  const env = curEnv(req);
+  const version = Number(req.body?.version);
+  const pool = poolOf(req);
+  if (!version) return res.status(400).json({ success: false, message: '请指定回滚版本' });
+  try {
+    const [[snap]] = await pool.execute(
+      'SELECT configValue, description, version FROM config_history WHERE configKey=? AND env=? AND version=?',
+      [req.params.key, env, version]
+    );
+    if (!snap) return res.status(404).json({ success: false, message: '该版本不存在' });
+    const [[cur]] = await pool.execute('SELECT version FROM app_configs WHERE configKey=? AND env=?', [req.params.key, env]);
+    if (!cur) return res.status(404).json({ success: false, message: '该环境下配置不存在' });
+    const nextVer = (cur.version || 1) + 1;
+    await pool.execute(
+      'UPDATE app_configs SET configValue=?, version=?, updatedBy=? WHERE configKey=? AND env=?',
+      [snap.configValue, nextVer, username, req.params.key, env]
+    );
+    await writeConfigHistory(pool, {
+      configKey: req.params.key, env, version: nextVer,
+      configValue: snap.configValue, description: snap.description,
+      operation: `rollback→v${snap.version}`, operator: username
+    });
+    audit(req, 'update', 'config', `回滚配置 ${req.params.key} 至 v${snap.version} (${env})`, req.params.key);
+    res.json({ success: true, data: { version: nextVer, restoredFrom: snap.version } });
+  } catch (e) { res.status(500).json({ success: false, message: '回滚失败' }); }
 });
 
 // ==================== 定时任务 ====================
@@ -251,6 +340,7 @@ router.get('/monitor', adminOnly, async (req, res) => {
         memory, disks,
         system: { platform: os.platform(), arch: os.arch(), nodeVersion: process.version, hostname: os.hostname(), uptime: Math.floor((Date.now() - bootTime) / 1000) },
         services: { database: dbStatus, api: 'up' },
+        gateway: getGatewayStats(),
         timestamp: new Date().toISOString()
       }
     });

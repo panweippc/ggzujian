@@ -16,6 +16,12 @@
           <el-option v-for="a in logFilters.actions" :key="a.value" :label="a.label" :value="a.value" />
         </el-select>
       </div>
+      <div class="filter-group" style="flex:1;min-width:220px">
+        <label>Trace ID（全链路检索）</label>
+        <el-input v-model="filters.traceId" placeholder="输入 X-Request-Id" clearable size="small">
+          <template #prefix><span style="color:#909399">🔍</span></template>
+        </el-input>
+      </div>
       <div class="filter-group" v-if="logFilters.showDateRange">
         <label>开始日期</label>
         <el-date-picker v-model="filters.startDate" type="date" placeholder="开始日期" size="small" style="width: 145px" value-format="YYYY-MM-DD" />
@@ -70,6 +76,14 @@
               </div>
             </div>
             <div v-else class="diff-detail diff-none">本次操作无可展开的数据变更详情</div>
+            <!-- 全链路追踪上下文 -->
+            <div class="trace-detail">
+              <div class="trace-row"><span class="trace-key">Trace ID</span><code class="trace-id">{{ row.traceId || '—' }}</code>
+                <el-tag v-if="row.durationMs" size="small" :type="row.durationMs > 800 ? 'warning' : 'info'" effect="plain">{{ row.durationMs }} ms</el-tag>
+              </div>
+              <div class="trace-row"><span class="trace-key">请求参数</span><pre class="trace-code">{{ pretty(row.requestBody) }}</pre></div>
+              <div class="trace-row"><span class="trace-key">响应结果</span><pre class="trace-code">{{ pretty(row.responseResult) }}</pre></div>
+            </div>
           </template>
         </el-table-column>
         <el-table-column v-for="col in logColumns" :key="col.prop" :prop="col.prop" :label="col.label" :width="col.width" :min-width="col.minWidth" show-overflow-tooltip>
@@ -109,8 +123,8 @@ const rows = ref<any[]>([]);
 const total = ref(0);
 const page = ref(1);
 const pageSize = 30;
-const filters = reactive<{ module: string; action: string; startDate: string; endDate: string }>({
-  module: '', action: '', startDate: '', endDate: '',
+const filters = reactive<{ module: string; action: string; startDate: string; endDate: string; traceId: string }>({
+  module: '', action: '', startDate: '', endDate: '', traceId: '',
 });
 
 // 脱敏策略 + 审计导出
@@ -146,13 +160,18 @@ const parseDiff = (v: any): Record<string, any> => {
   try { return JSON.parse(v); } catch { return {}; }
 };
 const hasDiff = (row: any) => Object.keys(parseDiff(row.beforeValue)).length > 0 || Object.keys(parseDiff(row.afterValue)).length > 0;
+// 请求/响应 JSON 美化展示
+const pretty = (v: any) => {
+  if (!v) return '—';
+  try { return JSON.stringify(JSON.parse(v), null, 2); } catch { return String(v); }
+};
 
 async function loadLogs() {
   loading.value = true;
   try {
     const res = await getLogs({
       page: page.value, pageSize,
-      module: filters.module, action: filters.action,
+      module: filters.module, action: filters.action, traceId: filters.traceId || undefined,
     });
     if (res.success) { rows.value = res.data; total.value = res.total; }
     else ElMessage.error('日志加载失败');
@@ -161,7 +180,7 @@ async function loadLogs() {
 }
 function search() { page.value = 1; loadLogs(); }
 function resetFilters() {
-  filters.module = ''; filters.action = ''; filters.startDate = ''; filters.endDate = '';
+  filters.module = ''; filters.action = ''; filters.startDate = ''; filters.endDate = ''; filters.traceId = '';
   page.value = 1;
   loadLogs();
 }
@@ -198,4 +217,11 @@ onMounted(loadLogs);
 .diff-val.new { color: #28a745; }
 .diff-empty { color: #c0c4cc; font-size: 12px; }
 .policy-tip { font-size: 12px; color: #909399; margin: 0; padding: 0 0 4px 130px; }
+
+/* 全链路追踪上下文 */
+.trace-detail { margin-top: 10px; padding: 12px 16px; background: #f7f9fc; border-radius: 8px; }
+.trace-row { display: flex; gap: 10px; align-items: flex-start; padding: 4px 0; font-size: 13px; }
+.trace-key { min-width: 72px; color: #909399; flex-shrink: 0; }
+.trace-id { color: #667eea; font-size: 12px; word-break: break-all; }
+.trace-code { margin: 0; font-size: 12px; color: #606266; white-space: pre-wrap; word-break: break-all; max-height: 160px; overflow: auto; background: #fff; padding: 6px 8px; border-radius: 4px; flex: 1; }
 </style>

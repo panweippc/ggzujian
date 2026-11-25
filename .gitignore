@@ -5,3 +5,5 @@ dist/
 .npmrc
 .DS_Store
 .workbuddy/
+# 运行期上传产物，不入库
+examples/starter/server/uploads/

@@ -27,6 +27,29 @@
         </div>
       </div>
 
+      <!-- 网关流量统计（底座第3部分） -->
+      <div class="gateway-card">
+        <div class="gw-head">
+          <h3>网关流量与耗时</h3>
+          <el-tag size="small" type="info" effect="plain">采样窗口内 {{ data?.gateway?.totalRequests ?? 0 }} 次请求 · 慢接口阈值 {{ data?.gateway?.slowThresholdMs ?? '--' }}ms</el-tag>
+        </div>
+        <el-row :gutter="16">
+          <el-col :span="8">
+            <div class="gw-stat"><span>慢接口数</span><strong :class="{ danger: (data?.gateway?.slowCount ?? 0) > 0 }">{{ data?.gateway?.slowCount ?? 0 }}</strong></div>
+          </el-col>
+          <el-col :span="16">
+            <div class="gw-stat"><span>最慢端点</span><strong class="small">{{ data?.gateway?.topEndpoints?.[0]?.path || '暂无' }}</strong></div>
+          </el-col>
+        </el-row>
+        <el-table :data="data?.gateway?.topEndpoints || []" size="small" style="width:100%;margin-top:8px" empty-text="暂无请求采样">
+          <el-table-column prop="path" label="端点" min-width="180" show-overflow-tooltip />
+          <el-table-column prop="count" label="请求数" width="90" />
+          <el-table-column prop="avgMs" label="平均耗时(ms)" width="120" />
+          <el-table-column prop="maxMs" label="最大耗时(ms)" width="120" />
+          <el-table-column prop="errors" label="错误数" width="90" />
+        </el-table>
+      </div>
+
       <!-- 图表 -->
       <el-row :gutter="16">
         <el-col :span="12">
@@ -126,4 +149,14 @@ onUnmounted(() => { if (timer) clearInterval(timer); window.removeEventListener(
 .chart-card h3, .info-card h3 { margin: 0 0 12px; font-size: 15px; color: var(--text-color); }
 .chart { height: 240px; }
 @media (max-width: 900px) { .stat-cards { grid-template-columns: 1fr 1fr; } }
+
+/* 网关统计卡片 */
+.gateway-card { background: var(--card-bg); border-radius: 12px; padding: 16px 18px; box-shadow: 0 1px 3px rgba(0,0,0,.06); margin-bottom: 16px; }
+.gw-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.gw-head h3 { margin: 0; font-size: 15px; color: var(--text-color); }
+.gw-stat { display: flex; flex-direction: column; gap: 4px; background: var(--hover-bg); border-radius: 8px; padding: 10px 14px; }
+.gw-stat span { font-size: 12px; color: var(--muted-color); }
+.gw-stat strong { font-size: 22px; color: var(--primary-color); }
+.gw-stat strong.danger { color: #f56c6c; }
+.gw-stat strong.small { font-size: 14px; word-break: break-all; }
 </style>

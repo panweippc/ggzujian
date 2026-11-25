@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router';
+import { useUserStore } from './stores/user';
 import LoginView from './views/LoginView.vue';
 import MainLayout from './layout/MainLayout.vue';
 import HomeView from './views/HomeView.vue';
@@ -15,6 +16,8 @@ import MonitorView from './views/MonitorView.vue';
 import ConfigView from './views/ConfigView.vue';
 import TaskView from './views/TaskView.vue';
 import ApiDocsView from './views/ApiDocsView.vue';
+import FileServiceView from './views/FileServiceView.vue';
+import MessageChannelView from './views/MessageChannelView.vue';
 
 const router = createRouter({
   history: createWebHistory(),
@@ -40,15 +43,28 @@ const router = createRouter({
         { path: 'config', name: 'config', component: ConfigView, meta: { title: '配置中心' } },
         { path: 'tasks', name: 'tasks', component: TaskView, meta: { title: '定时任务' } },
         { path: 'api-docs', name: 'apiDocs', component: ApiDocsView, meta: { title: '接口文档' } },
+        { path: 'files', name: 'files', component: FileServiceView, meta: { title: '文件服务' } },
+        { path: 'message-channels', name: 'messageChannels', component: MessageChannelView, meta: { title: '消息通道' } },
       ]
     }
   ]
 });
 
-router.beforeEach((to, from, next) => {
+// 无需菜单权限的路由（个人相关 + 登录引导），避免把用户自己锁在外面
+const PUBLIC_AUTH_PATHS = ['/', '/profile', '/change-password', '/onboarding'];
+
+router.beforeEach(async (to, from, next) => {
   const token = localStorage.getItem('token');
   if (to.meta.requiresAuth && !token) return next('/login');
   if (to.path === '/login' && token) return next('/');
+  if (!token) return next();
+
+  // RBAC：按角色菜单权限过滤（admin 全放行，见 userStore.canVisit）
+  if (!PUBLIC_AUTH_PATHS.includes(to.path)) {
+    const userStore = useUserStore();
+    await userStore.loadPermissions();
+    if (!userStore.canVisit(to.path)) return next('/');
+  }
   next();
 });
 

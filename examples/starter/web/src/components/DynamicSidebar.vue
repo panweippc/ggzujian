@@ -29,10 +29,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { BRAND, SIDE_MENUS } from '../config';
+import { useUserStore } from '../stores/user';
 
-const menus = SIDE_MENUS;
+const userStore = useUserStore();
+// RBAC：按角色菜单权限过滤侧边栏；admin 全放行
+const menus = computed(() => SIDE_MENUS.filter((m) => userStore.canVisit(m.path || '/')));
 const openSet = ref<Set<number>>(new Set());
 const props = defineProps<{ collapsed?: boolean }>();
 
@@ -41,6 +44,7 @@ const icons: Record<string, string> = {
   'bar-chart': '📈', database: '🗄', key: '🔑', file: '📁', alert: '⚠️',
   email: '✉️', search: '🔍', palette: '🎨', monitor: '📡', book: '📖',
   clock: '⏰', sliders: '🎛', shield: '🛡', quality: '🧩',
+  folder: '📂', bell: '🔔',
 };
 const iconOf = (k?: string) => (k && icons[k]) || '📄';
 
@@ -50,10 +54,11 @@ function toggle(id: number) {
   openSet.value = s;
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await userStore.loadPermissions();
   // 默认展开所有分组
   const open = new Set<number>();
-  for (const m of menus) if (m.children?.length) open.add(m.id);
+  for (const m of menus.value) if (m.children?.length) open.add(m.id);
   openSet.value = open;
 });
 </script>
