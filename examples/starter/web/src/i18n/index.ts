@@ -13,6 +13,7 @@ const LOCALES: Record<string, Dict> = {
     'nav.system': '系统管理', 'nav.security': '安全设置', 'nav.config': '配置中心',
     'common.save': '保存', 'common.cancel': '取消', 'common.delete': '删除',
     'common.confirm': '确定', 'common.search': '搜索', 'common.reset': '重置',
+    'common.language': '语言',
     'login.title': '登录', 'login.username': '用户名', 'login.password': '密码',
   },
   'en-US': {
@@ -21,6 +22,7 @@ const LOCALES: Record<string, Dict> = {
     'nav.system': 'System', 'nav.security': 'Security', 'nav.config': 'Config Center',
     'common.save': 'Save', 'common.cancel': 'Cancel', 'common.delete': 'Delete',
     'common.confirm': 'Confirm', 'common.search': 'Search', 'common.reset': 'Reset',
+    'common.language': 'Language',
     'login.title': 'Sign In', 'login.username': 'Username', 'login.password': 'Password',
   },
 };

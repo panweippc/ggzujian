@@ -12,7 +12,7 @@
 </template>
 <script setup lang="ts">
 import { ElMessage } from 'element-plus';
-import { locale, availableLocales, setLocale } from '../i18n';
+import { locale, availableLocales, setLocale, t } from '../i18n';
 function onCommand(l: string) {
   setLocale(l);
   ElMessage.success(`已切换为 ${l}`);
