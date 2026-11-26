@@ -117,11 +117,27 @@ cd web && npm i && npm run dev   # 默认监听 3008，被占用会自动顺延
 - **统一接入**：文件服务（`/files`，前端可热切换驱动、配置入库即时生效）、消息通道（`/message-channels`）、数据访问适配层（`DB_DRIVER`，预留国产库/NoSQL/时序）
 - **全留痕**：网关自动审计所有写操作（含未埋点接口）+ 手动审计自动去重；日志哈希链防篡改（`/api/audit/verify-chain`）、归档（`/api/audit/archive`）、增强查询（`/api/audit/logs/enhanced`）、危险操作 webhook 告警
 - **回收站**：顶栏 ♻，删除的文件/记录进回收站，保留 30 天（可配 `RECYCLE_KEEP_DAYS`）自动清除，支持恢复/彻底清除；后端 `/api/recycle-bin*`
-- **网关运维**：`/metrics`（Prometheus）、`/api/api-docs.json`（自动生成接口清单）、维护模式开关、写接口幂等键（`Idempotency-Key` 请求头）、版本响应头
+- **网关运维与可观测**：`/metrics`（Prometheus 文本指标：网关请求/慢请求/接口耗时错误 + Node.js 内存/CPU/事件循环 + 系统负载 + 实例信息）、Grafana 面板（docker-compose 一键起，自动加载）、`/api/api-docs.json`（自动生成接口清单）、维护模式开关、写接口幂等键（`Idempotency-Key` 请求头）、版本响应头
 - **工程化**：`npm test`（单测）、`node scripts/migrate.mjs`（版本化迁移）、`npm run sql:bundle`（生成一次性导入合集）、Dockerfile + docker-compose 一键起、组件与接口文档（`/component-docs`）、配置推送（dev→prod）
 - **平台化**（`/workflow`、`/platform`、`/ai-ops`、`/low-code`）：工作流引擎（流程定义/发起/待办/审批）、表单设计器、报表 BI、多租户与套餐、数据分级与字段加密、委托授权、事件订阅 Webhook、ETL 管线、开放平台 API 密钥；稳定性（熔断/缓存/特性开关）、可观测（trace/结构化日志/UEBA）、AI 助手（聊天/RAG/NL2SQL/智能巡检）、低代码搭建器
 
 > 平台化能力**默认全部走本地实现、零外部依赖**：缓存=内存 LRU、事件总线=内存、加密=AES-256-GCM、AI=内置演示、trace=内存环形缓冲。在 `.env` 填 `REDIS_URL`/`MQ_URL`/`KMS_URL`/`LLM_API_URL`/`OTLP_ENDPOINT`/`VECTOR_DB_URL` 后切换到对应真实适配器（适配器骨架在 `server/services/platform.js`，未接入真实驱动时明确提示，不静默降级）。
+>
+> **外部资源配置位已全部预声明**（见 `server/.env.example`），分三类：① 开箱即用（缓存/事件/加密/LLM/trace/文件 local/数据库）；② 有配置位但适配器为占位（`REDIS_URL`/`MQ_URL`/`KMS_URL`/`OTLP_ENDPOINT`/`VECTOR_DB_URL`，填入后会明确提示未接入真实驱动）；③ 仅预留配置位、尚未接入驱动（`ELK_URL`/`KIBANA_URL`/`JAEGER_URL`/`SENTRY_DSN` 与对象存储 `MINIO_*`/`OSS_*`）。第②③类需要对应外部服务与 SDK 适配器才能生效，配置位本身不会静默降级或报错。
+
+### 监控栈（Prometheus + Grafana，可选）
+
+后端 `/metrics` 已内置 Prometheus 文本指标，无需外部依赖即可用 curl 查看。要配可视化面板，用 docker-compose 一键起 Prometheus + Grafana：
+
+```bash
+# 与 app 一起启动整套监控（首次会拉镜像）
+docker compose up -d app prometheus grafana
+# Prometheus: http://localhost:9090   （已配好抓 app:3011/metrics）
+# Grafana:    http://localhost:3000   （默认 admin / admin123，可改 .env 的 GRAFANA_ADMIN_*）
+# 登录 Grafana 后「Dashboards」里已有 Starter 服务监控总览，无需手动导入
+```
+
+配置文件都在 `monitoring/`：`prometheus.yml`（抓取目标）、`grafana/provisioning/`（数据源 + 面板自动加载）、`grafana/dashboards/starter-dashboard.json`（10 个面板：请求量/慢请求/接口耗时/错误率/内存/CPU/负载/事件循环延迟等）。若已有自建 Prometheus，直接把抓取目标指向你的后端 `/metrics` 即可，面板 JSON 可单独导入。
 
 > 扩展表脚本都带演示数据（部门/角色/员工 + 2 条通知 + 字典 + 配置项 + 3 个任务），登录后即可看到效果。创建备份、添加用户、修改密码等操作会自动推送通知。
 
