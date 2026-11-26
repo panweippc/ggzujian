@@ -6,6 +6,8 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import path from 'node:path';
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import {
   createSecurity, createCaptcha, createRequireAuth,
   createAudit, createSecurityAlert,
@@ -264,4 +266,43 @@ app.get('/api/logs', async (req, res) => {
   res.json({ success: true, data: rows, total });
 });
 
-app.listen(3011, () => console.log('starter server listening on http://localhost:3011'));
+// ---------- 端口自动探测：默认 PORT 被占用时自动顺延，并把实际端口写给前端代理 ----------
+const __serverDir = path.dirname(fileURLToPath(import.meta.url));
+const RUNTIME_PORT_FILE = path.join(__serverDir, '.runtime-port.json');
+const START_PORT = Number(process.env.PORT) || 3011;
+const MAX_PORT_TRIES = 20;
+
+function writeRuntimePort(port) {
+  try {
+    fs.writeFileSync(RUNTIME_PORT_FILE, JSON.stringify({ port, pid: process.pid }));
+  } catch (e) {
+    console.warn('[port] 运行时端口文件写入失败：', e.message);
+  }
+}
+function clearRuntimePort() {
+  try {
+    const cur = JSON.parse(fs.readFileSync(RUNTIME_PORT_FILE, 'utf8'));
+    if (cur.pid === process.pid) fs.unlinkSync(RUNTIME_PORT_FILE);
+  } catch { /* 文件不存在或已损坏，忽略 */ }
+}
+process.on('exit', clearRuntimePort);
+process.on('SIGINT', () => { clearRuntimePort(); process.exit(0); });
+process.on('SIGTERM', () => { clearRuntimePort(); process.exit(0); });
+
+function listenWithFallback(port, triesLeft) {
+  const server = app.listen(port, () => {
+    console.log(`starter server listening on http://localhost:${port}`);
+    if (port !== START_PORT) console.warn(`[port] ${START_PORT} 被占用，已自动顺延到 ${port}`);
+    writeRuntimePort(port);
+  });
+  server.once('error', (err) => {
+    if (err.code === 'EADDRINUSE' && triesLeft > 0) {
+      console.warn(`[port] 端口 ${port} 已被占用，尝试 ${port + 1}`);
+      listenWithFallback(port + 1, triesLeft - 1);
+    } else {
+      console.error('[port] 启动失败：', err.message);
+      process.exit(1);
+    }
+  });
+}
+listenWithFallback(START_PORT, MAX_PORT_TRIES);

@@ -89,17 +89,21 @@ node -e "import('@panweippc/auth-kit').then(m=>console.log(m.hashPassword('Admin
 ### ② 启动后端
 
 ```bash
-cd server && npm run dev     # 监听 3011
+cd server && npm i && npm run dev   # 默认监听 3011，被占用会自动顺延到 3012、3013…
 curl http://localhost:3011/api/health   # 应返回 {"status":"ok","db":"up"}
 ```
+
+> 后端已把 `dotenv`/`bcryptjs`/`jsonwebtoken` 声明为自己的直接依赖，`cd server && npm i` 一步即可装齐，**不依赖仓库根的 workspaces**。端口从 `.env` 的 `PORT`（默认 3011）起探测，占用则自动 +1（最多 20 个），实际端口写入 `server/.runtime-port.json`，并在控制台打印。
 
 ### ③ 启动前端
 
 ```bash
-cd web && npm i && npm run dev   # 监听 3008，/api 代理到 3011
+cd web && npm i && npm run dev   # 默认监听 3008，被占用会自动顺延
 ```
 
-浏览器打开 `http://localhost:3008`，用 `admin / Admin@2026pass` 登录。首次登录会进入**新手引导页**（`/onboarding`），看完后进入工作台。全部功能开箱即用：
+> 前端启动时会读取 `server/.runtime-port.json` 拿到后端实际端口；`/api` 代理在**每次请求时动态读取**该文件，所以后端换了端口前端无需重启。两个端口都可分别用 `PORT`（后端）和 `VITE_PORT`（前端）环境变量覆盖。
+
+浏览器打开前端控制台打印的地址（默认 `http://localhost:3008`），用 `admin / Admin@2026pass` 登录。首次登录会进入**新手引导页**（`/onboarding`），看完后进入工作台。全部功能开箱即用：
 
 - **核心底座**：登录/验证码/限流/锁定、JWT 鉴权、个人中心、修改密码、退出登录
 - **系统管理**：用户/角色/数据备份（真实后端），菜单/权限（占位）
