@@ -9,16 +9,10 @@
 import express from 'express';
 import { verifyChain } from '../services/audit-chain.js';
 import { writeAudit } from '../middleware/audit.js';
+import { adminOnly } from '../middleware/role.js';
 
 const router = express.Router();
 const poolOf = (req) => req.app.locals.pool;
-const adminOnly = (req, res, next) => {
-  const role = req.user?.role || req.user?.roleName || '';
-  const name = req.user?.name || req.user?.username || '';
-  return (['admin', '系统管理员', '总经理'].includes(role) || name === 'admin')
-    ? next() : res.status(403).json({ success: false, message: '无权限，仅管理员可操作' });
-};
-
 /** 哈希链校验 */
 router.get('/audit/verify-chain', adminOnly, async (req, res) => {
   try {

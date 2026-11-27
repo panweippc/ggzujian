@@ -11,6 +11,8 @@ export const SQL_FILES = [
   'db-extend-common.sql',
   'db-extend-enterprise.sql',
   'db-extend-platform.sql',
+  'db-extend-signature.sql',
+  'db-extend-data-security.sql',
 ];
 
 export const BUNDLE_FILE = 'db-all.sql';

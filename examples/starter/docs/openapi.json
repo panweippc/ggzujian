@@ -1,0 +1,4722 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "starter API",
+    "version": "1.0.0",
+    "description": "由 scripts/generate-openapi.mjs 从路由源码自动生成，请勿手改"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3011",
+      "description": "本地开发"
+    }
+  ],
+  "paths": {
+    "/audit/verify-chain": {
+      "get": {
+        "summary": "GET /audit/verify-chain",
+        "tags": [
+          "audit-ext"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/audit/archives": {
+      "get": {
+        "summary": "GET /audit/archives",
+        "tags": [
+          "audit-ext"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/audit/archive": {
+      "post": {
+        "summary": "POST /audit/archive",
+        "tags": [
+          "audit-ext"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/audit/logs/enhanced": {
+      "get": {
+        "summary": "GET /audit/logs/enhanced",
+        "tags": [
+          "audit-ext"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/audit/stats": {
+      "get": {
+        "summary": "GET /audit/stats",
+        "tags": [
+          "audit-ext"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/base-data": {
+      "get": {
+        "summary": "GET /base-data",
+        "tags": [
+          "base-data"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /base-data",
+        "tags": [
+          "base-data"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/base-data/tree": {
+      "get": {
+        "summary": "GET /base-data/tree",
+        "tags": [
+          "base-data"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/base-data/{id}": {
+      "put": {
+        "summary": "PUT /base-data/{id}",
+        "tags": [
+          "base-data"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "delete": {
+        "summary": "DELETE /base-data/{id}",
+        "tags": [
+          "base-data"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/dict-items": {
+      "get": {
+        "summary": "GET /dict-items",
+        "tags": [
+          "common"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /dict-items",
+        "tags": [
+          "common"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/dict-items/batch": {
+      "post": {
+        "summary": "POST /dict-items/batch",
+        "tags": [
+          "common"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/dict-items/{id}": {
+      "put": {
+        "summary": "PUT /dict-items/{id}",
+        "tags": [
+          "common"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "delete": {
+        "summary": "DELETE /dict-items/{id}",
+        "tags": [
+          "common"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/dict-categories": {
+      "get": {
+        "summary": "GET /dict-categories",
+        "tags": [
+          "common"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /dict-categories",
+        "tags": [
+          "common"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/dict-categories/{id}": {
+      "put": {
+        "summary": "PUT /dict-categories/{id}",
+        "tags": [
+          "common"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "delete": {
+        "summary": "DELETE /dict-categories/{id}",
+        "tags": [
+          "common"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/configs": {
+      "get": {
+        "summary": "GET /configs",
+        "tags": [
+          "common"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /configs",
+        "tags": [
+          "common"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/configs/{key}": {
+      "put": {
+        "summary": "PUT /configs/{key}",
+        "tags": [
+          "common"
+        ],
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "delete": {
+        "summary": "DELETE /configs/{key}",
+        "tags": [
+          "common"
+        ],
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/configs/{key}/history": {
+      "get": {
+        "summary": "GET /configs/{key}/history",
+        "tags": [
+          "common"
+        ],
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/configs/{key}/rollback": {
+      "post": {
+        "summary": "POST /configs/{key}/rollback",
+        "tags": [
+          "common"
+        ],
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/cron/preview": {
+      "post": {
+        "summary": "POST /cron/preview",
+        "tags": [
+          "common"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/tasks": {
+      "get": {
+        "summary": "GET /tasks",
+        "tags": [
+          "common"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /tasks",
+        "tags": [
+          "common"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/tasks/{id}/toggle": {
+      "put": {
+        "summary": "PUT /tasks/{id}/toggle",
+        "tags": [
+          "common"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/tasks/{id}": {
+      "put": {
+        "summary": "PUT /tasks/{id}",
+        "tags": [
+          "common"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "delete": {
+        "summary": "DELETE /tasks/{id}",
+        "tags": [
+          "common"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/sessions": {
+      "get": {
+        "summary": "GET /sessions",
+        "tags": [
+          "common"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/sessions/{id}": {
+      "delete": {
+        "summary": "DELETE /sessions/{id}",
+        "tags": [
+          "common"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/ip-whitelist": {
+      "get": {
+        "summary": "GET /ip-whitelist",
+        "tags": [
+          "common"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /ip-whitelist",
+        "tags": [
+          "common"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/ip-whitelist/{id}": {
+      "delete": {
+        "summary": "DELETE /ip-whitelist/{id}",
+        "tags": [
+          "common"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/monitor": {
+      "get": {
+        "summary": "GET /monitor",
+        "tags": [
+          "common"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/totp/status": {
+      "get": {
+        "summary": "GET /totp/status",
+        "tags": [
+          "common"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/totp/setup": {
+      "post": {
+        "summary": "POST /totp/setup",
+        "tags": [
+          "common"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/totp/enable": {
+      "post": {
+        "summary": "POST /totp/enable",
+        "tags": [
+          "common"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/totp/disable": {
+      "post": {
+        "summary": "POST /totp/disable",
+        "tags": [
+          "common"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/data-export/policy": {
+      "get": {
+        "summary": "GET /data-export/policy",
+        "tags": [
+          "data-export"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/data-export/request": {
+      "post": {
+        "summary": "POST /data-export/request",
+        "tags": [
+          "data-export"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/data-export/approvals": {
+      "get": {
+        "summary": "GET /data-export/approvals",
+        "tags": [
+          "data-export"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/data-export/approvals/{no}/{decision}": {
+      "post": {
+        "summary": "POST /data-export/approvals/{no}/{decision}",
+        "tags": [
+          "data-export"
+        ],
+        "parameters": [
+          {
+            "name": "no",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "decision",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/data-export/approvals/{no}": {
+      "get": {
+        "summary": "GET /data-export/approvals/{no}",
+        "tags": [
+          "data-export"
+        ],
+        "parameters": [
+          {
+            "name": "no",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/dict-items/{id}/i18n": {
+      "get": {
+        "summary": "GET /dict-items/{id}/i18n",
+        "tags": [
+          "enterprise"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "put": {
+        "summary": "PUT /dict-items/{id}/i18n",
+        "tags": [
+          "enterprise"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/messages/{id}/read": {
+      "post": {
+        "summary": "POST /messages/{id}/read",
+        "tags": [
+          "enterprise"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/messages/{id}/read-count": {
+      "get": {
+        "summary": "GET /messages/{id}/read-count",
+        "tags": [
+          "enterprise"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/files/upload/init": {
+      "post": {
+        "summary": "POST /files/upload/init",
+        "tags": [
+          "enterprise"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/files/upload/chunk": {
+      "post": {
+        "summary": "POST /files/upload/chunk",
+        "tags": [
+          "enterprise"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/files/upload/complete": {
+      "post": {
+        "summary": "POST /files/upload/complete",
+        "tags": [
+          "enterprise"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/tasks/history": {
+      "get": {
+        "summary": "GET /tasks/history",
+        "tags": [
+          "enterprise"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/tasks/{id}/history": {
+      "get": {
+        "summary": "GET /tasks/{id}/history",
+        "tags": [
+          "enterprise"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/tasks/{id}/retry": {
+      "post": {
+        "summary": "POST /tasks/{id}/retry",
+        "tags": [
+          "enterprise"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/role-data-scopes": {
+      "get": {
+        "summary": "GET /role-data-scopes",
+        "tags": [
+          "enterprise"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/role-data-scopes/{role}": {
+      "put": {
+        "summary": "PUT /role-data-scopes/{role}",
+        "tags": [
+          "enterprise"
+        ],
+        "parameters": [
+          {
+            "name": "role",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/configs/push": {
+      "post": {
+        "summary": "POST /configs/push",
+        "tags": [
+          "enterprise"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/excel/template/{key}": {
+      "get": {
+        "summary": "GET /excel/template/{key}",
+        "tags": [
+          "excel"
+        ],
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/excel/check/{key}": {
+      "post": {
+        "summary": "POST /excel/check/{key}",
+        "tags": [
+          "excel"
+        ],
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/excel/import/{key}": {
+      "post": {
+        "summary": "POST /excel/import/{key}",
+        "tags": [
+          "excel"
+        ],
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/excel/export/{key}": {
+      "get": {
+        "summary": "GET /excel/export/{key}",
+        "tags": [
+          "excel"
+        ],
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/files/driver": {
+      "get": {
+        "summary": "GET /files/driver",
+        "tags": [
+          "files"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "put": {
+        "summary": "PUT /files/driver",
+        "tags": [
+          "files"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/files/upload": {
+      "post": {
+        "summary": "POST /files/upload",
+        "tags": [
+          "files"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/files": {
+      "get": {
+        "summary": "GET /files",
+        "tags": [
+          "files"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/files/{key}/download": {
+      "get": {
+        "summary": "GET /files/{key}/download",
+        "tags": [
+          "files"
+        ],
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/files/{key}/preview-policy": {
+      "get": {
+        "summary": "GET /files/{key}/preview-policy",
+        "tags": [
+          "files"
+        ],
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/files/{key}/preview": {
+      "get": {
+        "summary": "GET /files/{key}/preview",
+        "tags": [
+          "files"
+        ],
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/files/{key}": {
+      "delete": {
+        "summary": "DELETE /files/{key}",
+        "tags": [
+          "files"
+        ],
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/metrics": {
+      "get": {
+        "summary": "GET /metrics",
+        "tags": [
+          "gateway-ext"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/api/api-docs.json": {
+      "get": {
+        "summary": "GET /api/api-docs.json",
+        "tags": [
+          "gateway-ext"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/api/maintenance": {
+      "get": {
+        "summary": "GET /api/maintenance",
+        "tags": [
+          "gateway-ext"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "put": {
+        "summary": "PUT /api/maintenance",
+        "tags": [
+          "gateway-ext"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/messages/send": {
+      "post": {
+        "summary": "POST /messages/send",
+        "tags": [
+          "messages"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/messages/channels": {
+      "get": {
+        "summary": "GET /messages/channels",
+        "tags": [
+          "messages"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/messages/logs": {
+      "get": {
+        "summary": "GET /messages/logs",
+        "tags": [
+          "messages"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/resilience/circuit": {
+      "get": {
+        "summary": "GET /resilience/circuit",
+        "tags": [
+          "platform-ops"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/resilience/circuit/{key}/report": {
+      "post": {
+        "summary": "POST /resilience/circuit/{key}/report",
+        "tags": [
+          "platform-ops"
+        ],
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/resilience/cache": {
+      "get": {
+        "summary": "GET /resilience/cache",
+        "tags": [
+          "platform-ops"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /resilience/cache",
+        "tags": [
+          "platform-ops"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/resilience/cache/stats": {
+      "get": {
+        "summary": "GET /resilience/cache/stats",
+        "tags": [
+          "platform-ops"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/resilience/cache/{key}": {
+      "get": {
+        "summary": "GET /resilience/cache/{key}",
+        "tags": [
+          "platform-ops"
+        ],
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/feature-flags": {
+      "get": {
+        "summary": "GET /feature-flags",
+        "tags": [
+          "platform-ops"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/observability/logs": {
+      "get": {
+        "summary": "GET /observability/logs",
+        "tags": [
+          "platform-ops"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/observability/traces": {
+      "get": {
+        "summary": "GET /observability/traces",
+        "tags": [
+          "platform-ops"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /observability/traces",
+        "tags": [
+          "platform-ops"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/observability/flush": {
+      "get": {
+        "summary": "GET /observability/flush",
+        "tags": [
+          "platform-ops"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/observability/sampling": {
+      "get": {
+        "summary": "GET /observability/sampling",
+        "tags": [
+          "platform-ops"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "put": {
+        "summary": "PUT /observability/sampling",
+        "tags": [
+          "platform-ops"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/ueba/alerts": {
+      "get": {
+        "summary": "GET /ueba/alerts",
+        "tags": [
+          "platform-ops"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/ai/chat": {
+      "post": {
+        "summary": "POST /ai/chat",
+        "tags": [
+          "platform-ops"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/ai/rag/search": {
+      "post": {
+        "summary": "POST /ai/rag/search",
+        "tags": [
+          "platform-ops"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/ai/nl2sql": {
+      "post": {
+        "summary": "POST /ai/nl2sql",
+        "tags": [
+          "platform-ops"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/ai/inspect": {
+      "get": {
+        "summary": "GET /ai/inspect",
+        "tags": [
+          "platform-ops"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/ai/inspect/rules": {
+      "get": {
+        "summary": "GET /ai/inspect/rules",
+        "tags": [
+          "platform-ops"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/platform/status": {
+      "get": {
+        "summary": "GET /platform/status",
+        "tags": [
+          "platform-ops"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/workflows": {
+      "get": {
+        "summary": "GET /workflows",
+        "tags": [
+          "platform"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /workflows",
+        "tags": [
+          "platform"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/workflows/{id}": {
+      "put": {
+        "summary": "PUT /workflows/{id}",
+        "tags": [
+          "platform"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "delete": {
+        "summary": "DELETE /workflows/{id}",
+        "tags": [
+          "platform"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/workflows/{code}/start": {
+      "post": {
+        "summary": "POST /workflows/{code}/start",
+        "tags": [
+          "platform"
+        ],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/workflows/tasks/mine": {
+      "get": {
+        "summary": "GET /workflows/tasks/mine",
+        "tags": [
+          "platform"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/workflows/tasks/{id}/handle": {
+      "post": {
+        "summary": "POST /workflows/tasks/{id}/handle",
+        "tags": [
+          "platform"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/workflows/instances": {
+      "get": {
+        "summary": "GET /workflows/instances",
+        "tags": [
+          "platform"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/workflows/instances/{id}": {
+      "get": {
+        "summary": "GET /workflows/instances/{id}",
+        "tags": [
+          "platform"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/form-schemas": {
+      "get": {
+        "summary": "GET /form-schemas",
+        "tags": [
+          "platform"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /form-schemas",
+        "tags": [
+          "platform"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/form-schemas/{id}": {
+      "put": {
+        "summary": "PUT /form-schemas/{id}",
+        "tags": [
+          "platform"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "delete": {
+        "summary": "DELETE /form-schemas/{id}",
+        "tags": [
+          "platform"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/reports": {
+      "get": {
+        "summary": "GET /reports",
+        "tags": [
+          "platform"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /reports",
+        "tags": [
+          "platform"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/reports/{code}/data": {
+      "get": {
+        "summary": "GET /reports/{code}/data",
+        "tags": [
+          "platform"
+        ],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/tenants": {
+      "get": {
+        "summary": "GET /tenants",
+        "tags": [
+          "platform"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /tenants",
+        "tags": [
+          "platform"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/tenants/{id}": {
+      "put": {
+        "summary": "PUT /tenants/{id}",
+        "tags": [
+          "platform"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/plans": {
+      "get": {
+        "summary": "GET /plans",
+        "tags": [
+          "platform"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /plans",
+        "tags": [
+          "platform"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/tenants/{code}/quota": {
+      "get": {
+        "summary": "GET /tenants/{code}/quota",
+        "tags": [
+          "platform"
+        ],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/classifications": {
+      "get": {
+        "summary": "GET /classifications",
+        "tags": [
+          "platform"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /classifications",
+        "tags": [
+          "platform"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/classifications/encrypt": {
+      "post": {
+        "summary": "POST /classifications/encrypt",
+        "tags": [
+          "platform"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/classifications/decrypt": {
+      "post": {
+        "summary": "POST /classifications/decrypt",
+        "tags": [
+          "platform"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/delegations": {
+      "get": {
+        "summary": "GET /delegations",
+        "tags": [
+          "platform"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /delegations",
+        "tags": [
+          "platform"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/delegations/{id}": {
+      "delete": {
+        "summary": "DELETE /delegations/{id}",
+        "tags": [
+          "platform"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/event-subscriptions": {
+      "get": {
+        "summary": "GET /event-subscriptions",
+        "tags": [
+          "platform"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /event-subscriptions",
+        "tags": [
+          "platform"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/event-subscriptions/{id}": {
+      "delete": {
+        "summary": "DELETE /event-subscriptions/{id}",
+        "tags": [
+          "platform"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/event-subscriptions/{id}/test": {
+      "post": {
+        "summary": "POST /event-subscriptions/{id}/test",
+        "tags": [
+          "platform"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/etl": {
+      "get": {
+        "summary": "GET /etl",
+        "tags": [
+          "platform"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /etl",
+        "tags": [
+          "platform"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/etl/{id}/run": {
+      "post": {
+        "summary": "POST /etl/{id}/run",
+        "tags": [
+          "platform"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/api-keys": {
+      "get": {
+        "summary": "GET /api-keys",
+        "tags": [
+          "platform"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /api-keys",
+        "tags": [
+          "platform"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/api-keys/{id}": {
+      "delete": {
+        "summary": "DELETE /api-keys/{id}",
+        "tags": [
+          "platform"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/recycle-bin": {
+      "get": {
+        "summary": "GET /recycle-bin",
+        "tags": [
+          "recycle"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /recycle-bin",
+        "tags": [
+          "recycle"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/recycle-bin/modules": {
+      "get": {
+        "summary": "GET /recycle-bin/modules",
+        "tags": [
+          "recycle"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/recycle-bin/{id}/restore": {
+      "post": {
+        "summary": "POST /recycle-bin/{id}/restore",
+        "tags": [
+          "recycle"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/recycle-bin/{id}": {
+      "delete": {
+        "summary": "DELETE /recycle-bin/{id}",
+        "tags": [
+          "recycle"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/recycle-bin/expired": {
+      "delete": {
+        "summary": "DELETE /recycle-bin/expired",
+        "tags": [
+          "recycle"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/signatures/sign": {
+      "post": {
+        "summary": "POST /signatures/sign",
+        "tags": [
+          "signature"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/signatures/verify": {
+      "post": {
+        "summary": "POST /signatures/verify",
+        "tags": [
+          "signature"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/signatures/revoke": {
+      "post": {
+        "summary": "POST /signatures/revoke",
+        "tags": [
+          "signature"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/signatures/{docId}": {
+      "get": {
+        "summary": "GET /signatures/{docId}",
+        "tags": [
+          "signature"
+        ],
+        "parameters": [
+          {
+            "name": "docId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/seals": {
+      "get": {
+        "summary": "GET /seals",
+        "tags": [
+          "signature"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /seals",
+        "tags": [
+          "signature"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/me/permissions": {
+      "get": {
+        "summary": "GET /me/permissions",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/departments": {
+      "get": {
+        "summary": "GET /departments",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/roles": {
+      "get": {
+        "summary": "GET /roles",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /roles",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/roles/{id}": {
+      "get": {
+        "summary": "GET /roles/{id}",
+        "tags": [
+          "system"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "put": {
+        "summary": "PUT /roles/{id}",
+        "tags": [
+          "system"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "delete": {
+        "summary": "DELETE /roles/{id}",
+        "tags": [
+          "system"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/roles/{roleId}/permissions": {
+      "get": {
+        "summary": "GET /roles/{roleId}/permissions",
+        "tags": [
+          "system"
+        ],
+        "parameters": [
+          {
+            "name": "roleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /roles/{roleId}/permissions",
+        "tags": [
+          "system"
+        ],
+        "parameters": [
+          {
+            "name": "roleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/roles/{roleId}/button-permissions": {
+      "get": {
+        "summary": "GET /roles/{roleId}/button-permissions",
+        "tags": [
+          "system"
+        ],
+        "parameters": [
+          {
+            "name": "roleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /roles/{roleId}/button-permissions",
+        "tags": [
+          "system"
+        ],
+        "parameters": [
+          {
+            "name": "roleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/menus": {
+      "get": {
+        "summary": "GET /menus",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /menus",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/menus/{id}": {
+      "put": {
+        "summary": "PUT /menus/{id}",
+        "tags": [
+          "system"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "delete": {
+        "summary": "DELETE /menus/{id}",
+        "tags": [
+          "system"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/employees": {
+      "get": {
+        "summary": "GET /employees",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /employees",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/employees/{name}": {
+      "put": {
+        "summary": "PUT /employees/{name}",
+        "tags": [
+          "system"
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "delete": {
+        "summary": "DELETE /employees/{name}",
+        "tags": [
+          "system"
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/employees/{name}/reset-password": {
+      "post": {
+        "summary": "POST /employees/{name}/reset-password",
+        "tags": [
+          "system"
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/backups": {
+      "get": {
+        "summary": "GET /backups",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      },
+      "post": {
+        "summary": "POST /backups",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/backups/{file}/verify": {
+      "get": {
+        "summary": "GET /backups/{file}/verify",
+        "tags": [
+          "system"
+        ],
+        "parameters": [
+          {
+            "name": "file",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/backups/{file}/download": {
+      "get": {
+        "summary": "GET /backups/{file}/download",
+        "tags": [
+          "system"
+        ],
+        "parameters": [
+          {
+            "name": "file",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/backups/{file}": {
+      "delete": {
+        "summary": "DELETE /backups/{file}",
+        "tags": [
+          "system"
+        ],
+        "parameters": [
+          {
+            "name": "file",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/backups/{file}/restore": {
+      "post": {
+        "summary": "POST /backups/{file}/restore",
+        "tags": [
+          "system"
+        ],
+        "parameters": [
+          {
+            "name": "file",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/user/login-records": {
+      "get": {
+        "summary": "GET /user/login-records",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/user/change-password": {
+      "post": {
+        "summary": "POST /user/change-password",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/security-alerts": {
+      "get": {
+        "summary": "GET /security-alerts",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/notifications": {
+      "get": {
+        "summary": "GET /notifications",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/notifications/unread-count": {
+      "get": {
+        "summary": "GET /notifications/unread-count",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/notifications/{id}/read": {
+      "post": {
+        "summary": "POST /notifications/{id}/read",
+        "tags": [
+          "system"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/notifications/read-all": {
+      "post": {
+        "summary": "POST /notifications/read-all",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/notifications/{id}": {
+      "delete": {
+        "summary": "DELETE /notifications/{id}",
+        "tags": [
+          "system"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/user/avatar": {
+      "post": {
+        "summary": "POST /user/avatar",
+        "tags": [
+          "system"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    },
+    "/user/avatar/{username}": {
+      "get": {
+        "summary": "GET /user/avatar/{username}",
+        "tags": [
+          "system"
+        ],
+        "parameters": [
+          {
+            "name": "username",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求参数错误"
+          },
+          "401": {
+            "description": "未认证"
+          },
+          "500": {
+            "description": "服务端错误"
+          }
+        }
+      }
+    }
+  }
+}

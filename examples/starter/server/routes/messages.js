@@ -5,15 +5,10 @@
 import express from 'express';
 import { sendMessage, channelStatus, readMessageLog } from '../services/message-channels.js';
 import { writeAudit } from '../middleware/audit.js';
+import { sseBus } from '../services/sse-bus.js';
+import { adminOnly } from '../middleware/role.js';
 
 const router = express.Router();
-const adminOnly = (req, res, next) => {
-  const role = req.user?.role || req.user?.roleName || '';
-  const name = req.user?.name || req.user?.username || '';
-  return (['admin', '系统管理员', '总经理'].includes(role) || name === 'admin')
-    ? next() : res.status(403).json({ success: false, message: '无权限，仅管理员可操作' });
-};
-
 /** 统一发送入口：一次调用，任选通道 */
 router.post('/messages/send', adminOnly, async (req, res) => {
   const { channel, to, title, content, link, type } = req.body || {};
@@ -24,6 +19,10 @@ router.post('/messages/send', adminOnly, async (req, res) => {
       action: 'message_send', module: 'message', targetName: to || '*',
       detail: `通过 ${result.channel} 发送消息「${title}」(${result.mode})`
     }).catch(() => {});
+    // SSE 实时推送：站内信成功后推给目标用户（to='*' 广播给所有在线端）
+    if (result.ok && result.channel === 'inapp') {
+      sseBus.broadcast('notification', { title, type: type || 'system', link: link || null, at: Date.now() }, to || '');
+    }
     res.json({ success: result.ok, data: result, message: result.ok ? undefined : result.error });
   } catch (e) {
     res.status(400).json({ success: false, message: e.message });

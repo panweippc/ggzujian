@@ -10,16 +10,10 @@ import os from 'node:os';
 import { getGatewayStats } from '../middleware/gateway.js';
 import { getRuntimeConfig, setRuntimeConfig, refreshRuntimeConfig } from '../services/runtime-config.js';
 import { writeAudit } from '../middleware/audit.js';
+import { adminOnly } from '../middleware/role.js';
 
 const router = express.Router();
 const poolOf = (req) => req.app.locals.pool;
-const adminOnly = (req, res, next) => {
-  const role = req.user?.role || req.user?.roleName || '';
-  const name = req.user?.name || req.user?.username || '';
-  return (['admin', '系统管理员', '总经理'].includes(role) || name === 'admin')
-    ? next() : res.status(403).json({ success: false, message: '无权限，仅管理员可操作' });
-};
-
 /**
  * Prometheus 指标（文本格式 exposition 0.0.4）
  * 覆盖四类，全部零外部依赖：

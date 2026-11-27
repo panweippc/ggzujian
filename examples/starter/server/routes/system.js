@@ -19,20 +19,32 @@ import {
   generateRandomPassword, getOperator, createOperationLog
 } from '@panweippc/auth-kit';
 import { writeAudit } from '../middleware/audit.js';
+import { adminOnly, isAdmin } from '../middleware/role.js';
+import { createFieldCrypto } from '../services/field-crypto.js';
+import { encryptRow, decryptRow } from '../services/sensitive-fields.js';
+import { sealBackup, verifyBackup, openBackup, closeBackup, readManifest } from '../services/backup-security.js';
+import { dumpDatabase } from '../services/db-backup.js';
+import { PG_DRIVERS } from '../services/pg-compat.js';
 
 const router = express.Router();
 
-// 管理员角色：starter 用 'admin'，兼容 qygl 的中文角色名
-const ADMIN_ROLES = ['admin', '系统管理员', '总经理'];
-const isAdmin = (req) => {
-  const role = req.user?.role || req.user?.roleName || '';
-  const name = req.user?.name || req.user?.username || '';
-  return ADMIN_ROLES.includes(role) || name === 'admin';
-};
-const adminOnly = (req, res, next) => {
-  if (!isAdmin(req)) return res.status(403).json({ success: false, message: '无权限，仅管理员可执行此操作' });
-  next();
-};
+// 字段级加密：惰性初始化，缺密钥时明确告警并走明文（不假装已加密）。
+// 生产务必配置 DATA_ENCRYPT_KEY；回退 JWT_SECRET 时建议尽快迁移到独立密钥。
+let _fieldCrypto;
+function fieldCrypto() {
+  if (_fieldCrypto === undefined) {
+    try {
+      _fieldCrypto = createFieldCrypto();
+      if (!process.env.DATA_ENCRYPT_KEY && !process.env.SECRETS_MASTER_KEY) {
+        console.warn('[field-crypto] DATA_ENCRYPT_KEY 未配置，已回退 JWT_SECRET。建议配置独立密钥。');
+      }
+    } catch (e) {
+      console.warn('[field-crypto] 字段加密未启用：' + e.message);
+      _fieldCrypto = null;
+    }
+  }
+  return _fieldCrypto;
+}
 
 // 高危操作二次验证：校验当前登录用户密码（防会话劫持）
 const verifyAdminPassword = async (req, res, next) => {
@@ -344,8 +356,10 @@ router.get('/employees', async (req, res) => {
     else if (perms.dataScope === 'self') { sql += ' AND name = ?'; args.push(req.user?.name || req.user?.username || ''); }
     sql += ' ORDER BY id';
     const [rows] = await pool.execute(sql, args);
-    // 列级：非全量范围脱敏敏感字段
-    const out = rows.map((r) => maskEmployeeRow(r, perms.dataScope));
+    // 字段级：先解密落库密文（兼容迁移前明文），再按数据范围列级脱敏
+    const fc = fieldCrypto();
+    const plain = fc ? rows.map((r) => decryptRow('employees', r, fc)) : rows;
+    const out = plain.map((r) => maskEmployeeRow(r, perms.dataScope));
     res.json({ success: true, data: out, dataScope: perms.dataScope });
   } catch (e) { res.status(500).json({ success: false, message: '获取用户列表失败' }); }
 });
@@ -362,12 +376,19 @@ router.post('/employees', adminOnly, verifyAdminPassword, async (req, res) => {
       const err = validatePassword(initPwd, name);
       if (err) return res.status(400).json({ success: false, message: err });
     }
+    const emp = {
+      name, department, position: position || '', email: email || '', phone: phone || '',
+      entryDate: entryDate || nowStr(), roleId: roleId || null, status: status || '在职',
+      employeeType: employeeType || '正式员工', education: education || '', birthDate: birthDate || null,
+      idCard: idCard || '', address: address || '', emergencyContact: emergencyContact || '',
+      emergencyPhone: emergencyPhone || '', createdAt: nowStr(),
+    };
+    const fc = fieldCrypto();
+    const secured = fc ? encryptRow('employees', emp, fc) : emp;
+    const cols = Object.keys(secured);
     const [r] = await pool.execute(
-      `INSERT INTO employees (name,department,position,email,phone,entryDate,roleId,status,employeeType,education,birthDate,idCard,address,emergencyContact,emergencyPhone,createdAt)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      [name, department, position || '', email || '', phone || '', entryDate || nowStr(), roleId || null,
-       status || '在职', employeeType || '正式员工', education || '', birthDate || null, idCard || '',
-       address || '', emergencyContact || '', emergencyPhone || '', nowStr()]
+      `INSERT INTO employees (${cols.join(',')}) VALUES (${cols.map(() => '?').join(',')})`,
+      cols.map((k) => secured[k])
     );
     // 同步创建登录账号（bcrypt 哈希 + token_version）
     const [exist] = await pool.execute('SELECT id FROM users WHERE username = ?', [name]);
@@ -389,10 +410,18 @@ router.put('/employees/:name', adminOnly, verifyAdminPassword, async (req, res) 
   const { pool } = req.app.locals;
   const { department, position, email, phone, roleId, status, employeeType, education, birthDate, idCard, address, emergencyContact, emergencyPhone, password } = req.body;
   try {
+    const emp = {
+      department, position: position || '', email: email || '', phone: phone || '',
+      roleId: roleId || null, status: status || '在职', employeeType: employeeType || '正式员工',
+      education: education || '', birthDate: birthDate || null, idCard: idCard || '', address: address || '',
+      emergencyContact: emergencyContact || '', emergencyPhone: emergencyPhone || '',
+    };
+    const fc = fieldCrypto();
+    const secured = fc ? encryptRow('employees', emp, fc) : emp;
+    const sets = Object.keys(secured);
     await pool.execute(
-      `UPDATE employees SET department=?,position=?,email=?,phone=?,roleId=?,status=?,employeeType=?,education=?,birthDate=?,idCard=?,address=?,emergencyContact=?,emergencyPhone=? WHERE name=?`,
-      [department, position || '', email || '', phone || '', roleId || null, status || '在职', employeeType || '正式员工',
-       education || '', birthDate || null, idCard || '', address || '', emergencyContact || '', emergencyPhone || '', req.params.name]
+      `UPDATE employees SET ${sets.map((k) => `${k}=?`).join(',')} WHERE name=?`,
+      [...sets.map((k) => secured[k]), req.params.name]
     );
     if (password) {
       const err = validatePassword(password, req.params.name);
@@ -430,17 +459,38 @@ router.post('/employees/:name/reset-password', adminOnly, verifyAdminPassword, a
   } catch (e) { res.status(500).json({ success: false, message: '重置密码失败' }); }
 });
 
-// ==================== 数据备份 ====================
+// ==================== 数据备份（完整性 / 加密 / 可恢复性校验）====================
 const BACKUP_DIR = path.join(process.cwd(), 'backups', 'manual');
 const SAFE_NAME = /^[A-Za-z0-9_\-]+\.sql$/;
 const safeResolve = (f) => (SAFE_NAME.test(f) ? path.join(BACKUP_DIR, f) : null);
+
+/** 内部：dump + 安全封存（SHA-256 / 可选加密 / 异地复制 / 过期清理），按 DB_DRIVER 分发 */
+async function createSecureBackup(pool, filename) {
+  const full = path.join(BACKUP_DIR, filename);
+  const driver = process.env.DB_DRIVER || 'mysql';
+  const dbName = process.env.DB_NAME || '';
+  const { tables, rows } = await dumpDatabase(pool, full, driver, dbName);
+  const manifest = await sealBackup(full, { tables, rows, driver, dbName });
+  return { full, tables, rows, manifest };
+}
 
 router.get('/backups', adminOnly, async (req, res) => {
   try {
     fs.mkdirSync(BACKUP_DIR, { recursive: true });
     const files = fs.readdirSync(BACKUP_DIR).filter((f) => SAFE_NAME.test(f)).map((name) => {
-      const st = fs.statSync(path.join(BACKUP_DIR, name));
-      return { name, size: st.size, sizeText: st.size < 1048576 ? `${(st.size / 1024).toFixed(1)} KB` : `${(st.size / 1048576).toFixed(2)} MB`, createdAt: st.mtime };
+      const full = path.join(BACKUP_DIR, name);
+      const st = fs.statSync(full);
+      let meta = null;
+      try {
+        const mp = `${full}.manifest.json`;
+        if (fs.existsSync(mp)) meta = JSON.parse(fs.readFileSync(mp, 'utf8'));
+      } catch { /* manifest 损坏时按旧备份展示 */ }
+      return {
+        name, size: st.size,
+        sizeText: st.size < 1048576 ? `${(st.size / 1024).toFixed(1)} KB` : `${(st.size / 1048576).toFixed(2)} MB`,
+        createdAt: st.mtime, hasManifest: !!meta, sha256: meta?.sha256 || null,
+        encrypted: !!meta?.encrypted, tables: meta?.tables ?? null, rows: meta?.rows ?? null,
+      };
     }).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     res.json({ success: true, data: files });
   } catch (e) { res.status(500).json({ success: false, message: '列出备份失败' }); }
@@ -448,52 +498,58 @@ router.get('/backups', adminOnly, async (req, res) => {
 
 router.post('/backups', adminOnly, async (req, res) => {
   const { pool } = req.app.locals;
-  const conn = await pool.getConnection();
   const filename = `${process.env.DB_NAME || 'my_project'}_${new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14)}.sql`;
   const full = path.join(BACKUP_DIR, filename);
-  let tables = 0, rows = 0;
   try {
-    fs.mkdirSync(BACKUP_DIR, { recursive: true });
-    await conn.query('SET SESSION group_concat_max_len = 1073741824');
-    const [tr] = await conn.query('SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() ORDER BY TABLE_NAME');
-    tables = tr.length;
-    const out = fs.createWriteStream(full, { encoding: 'utf8' });
-    out.write(`-- starter 数据库备份\n-- 数据库: ${process.env.DB_NAME || 'my_project'}\n-- 备份时间: ${nowStr()}\n-- 表数量: ${tables}\nSET NAMES utf8mb4;\nSET FOREIGN_KEY_CHECKS = 0;\n\n`);
-    for (const t of tr.map((x) => x.TABLE_NAME)) {
-      const [cr] = await conn.query(`SHOW CREATE TABLE \`${t}\``);
-      out.write(`DROP TABLE IF EXISTS \`${t}\`;\n${cr[0]['Create Table']};\n\n`);
-      let offset = 0;
-      while (true) {
-        const [batch] = await conn.query(`SELECT * FROM \`${t}\` LIMIT 2000 OFFSET ${offset}`);
-        if (!batch.length) break;
-        rows += batch.length;
-        for (const r of batch) {
-          const cols = Object.keys(r).map((c) => `\`${c}\``).join(', ');
-          const vals = Object.keys(r).map((c) => conn.escape(r[c])).join(', ');
-          out.write(`INSERT INTO \`${t}\` (${cols}) VALUES (${vals});\n`);
-        }
-        offset += batch.length;
-      }
-      out.write('\n');
-    }
-    out.write('SET FOREIGN_KEY_CHECKS = 1;\n');
-    await new Promise((resolve, reject) => { out.end(resolve); out.on('error', reject); });
-    audit(pool, req, { action: 'backup_create', module: 'system', targetName: filename, detail: `创建备份，${tables} 张表 ${rows} 行` });
-    pushNotification(pool, { recipient: '*', type: 'backup', title: '数据备份完成', content: `${operator(req)} 创建了备份 ${filename}（${tables} 表 ${rows} 行）`, link: '/system' });
+    const { tables, rows, manifest } = await createSecureBackup(pool, filename);
     const st = fs.statSync(full);
-    res.json({ success: true, message: `备份成功：${tables} 张表、${rows} 行数据`, data: { name: filename, size: st.size, sizeText: `${(st.size / 1024).toFixed(1)} KB`, createdAt: st.mtime } });
+    audit(pool, req, {
+      action: 'backup_create', module: 'system', targetName: filename,
+      detail: `创建备份，${tables} 张表 ${rows} 行，SHA256=${manifest.sha256.slice(0, 12)}，加密=${manifest.encrypted ? '是' : '否'}`,
+    });
+    pushNotification(pool, { recipient: '*', type: 'backup', title: '数据备份完成', content: `${operator(req)} 创建了备份 ${filename}（${tables} 表 ${rows} 行）`, link: '/system' });
+    res.json({
+      success: true, message: `备份成功：${tables} 张表、${rows} 行数据`,
+      data: { name: filename, size: st.size, sizeText: `${(st.size / 1024).toFixed(1)} KB`, createdAt: st.mtime,
+        sha256: manifest.sha256, encrypted: manifest.encrypted, remoteCopy: manifest.remoteCopy },
+    });
   } catch (e) {
     console.error('[备份失败]', e);
     try { fs.unlinkSync(full); } catch {}
-    res.status(500).json({ success: false, message: '创建备份失败' });
-  } finally { conn.release(); }
+    try { fs.unlinkSync(`${full}.manifest.json`); } catch {}
+    res.status(500).json({ success: false, message: '创建备份失败：' + e.message });
+  }
+});
+
+/** 完整性校验：落盘哈希 + 解密后内容哈希 + SQL 干跑（不执行） */
+router.get('/backups/:file/verify', adminOnly, async (req, res) => {
+  const full = safeResolve(req.params.file);
+  if (!full || !fs.existsSync(full)) return res.status(404).json({ success: false, message: '备份文件不存在' });
+  try {
+    const result = await verifyBackup(full);
+    await writeAudit(req.app.locals.pool, req, {
+      action: 'backup_verify', module: 'system', targetName: req.params.file,
+      detail: `备份校验${result.ok ? '通过' : '未通过'}${result.reason ? '：' + result.reason : ''}`,
+      ipAddress: req.ip,
+    }).catch(() => {});
+    res.json({ success: true, data: result });
+  } catch (e) {
+    res.status(500).json({ success: false, message: '校验失败：' + e.message });
+  }
 });
 
 router.get('/backups/:file/download', adminOnly, async (req, res) => {
   const full = safeResolve(req.params.file);
   if (!full || !fs.existsSync(full)) return res.status(404).json({ success: false, message: '备份文件不存在' });
-  audit(req.app.locals.pool, req, { action: 'backup_download', module: 'system', targetName: req.params.file, detail: '下载备份文件' });
-  res.download(full, req.params.file);
+  let opened;
+  try {
+    opened = await openBackup(full);
+    audit(req.app.locals.pool, req, { action: 'backup_download', module: 'system', targetName: req.params.file, detail: '下载备份文件' });
+    res.download(opened.path, req.params.file, () => closeBackup(opened));
+  } catch (e) {
+    if (opened) closeBackup(opened);
+    res.status(500).json({ success: false, message: '下载失败：' + e.message });
+  }
 });
 
 router.delete('/backups/:file', adminOnly, verifyAdminPassword, async (req, res) => {
@@ -501,31 +557,75 @@ router.delete('/backups/:file', adminOnly, verifyAdminPassword, async (req, res)
   if (!full || !fs.existsSync(full)) return res.status(404).json({ success: false, message: '备份文件不存在' });
   try {
     fs.unlinkSync(full);
-    audit(req.app.locals.pool, req, { action: 'backup_delete', module: 'system', targetName: req.params.file, detail: '删除备份文件' });
+    try { fs.unlinkSync(`${full}.manifest.json`); } catch {}
+    audit(req.app.locals.pool, req, { action: 'backup_delete', module: 'system', targetName: req.params.file, detail: '删除备份文件及校验清单' });
     res.json({ success: true, message: '备份文件已删除' });
   } catch (e) { res.status(500).json({ success: false, message: '删除备份失败' }); }
 });
 
-router.post('/backups/:file/restore', adminOnly, async (req, res) => {
-  const { createConnection } = await import('mysql2/promise');
-  if (req.body.confirm !== 'RESTORE') return res.status(400).json({ success: false, message: '请先确认恢复操作（confirm=RESTORE）' });
+/** 恢复：强制完整性校验 + 恢复前自动快照 + 二次密码验证 + 加密备份透明解密 */
+router.post('/backups/:file/restore', adminOnly, verifyAdminPassword, async (req, res) => {
   const full = safeResolve(req.params.file);
+  if (req.body.confirm !== 'RESTORE') return res.status(400).json({ success: false, message: '请先确认恢复操作（confirm=RESTORE）' });
   if (!full || !fs.existsSync(full)) return res.status(404).json({ success: false, message: '备份文件不存在' });
-  const dbCfg = { host: process.env.DB_HOST || '127.0.0.1', port: +(process.env.DB_PORT || 3306), user: process.env.DB_USER || 'root', password: process.env.DB_PASSWORD, database: process.env.DB_NAME, multipleStatements: true };
-  const conn = await createConnection(dbCfg);
+  const pool = req.app.locals.pool;
+  let opened;
   try {
-    const sql = fs.readFileSync(full, 'utf8');
-    await conn.query("SET SESSION sql_mode = ''");
-    await conn.query('SET FOREIGN_KEY_CHECKS = 0');
-    await conn.query(sql);
-    await conn.query('SET FOREIGN_KEY_CHECKS = 1');
-    audit(req.app.locals.pool, req, { action: 'backup_restore', module: 'system', targetName: req.params.file, detail: '从备份恢复数据库' });
-    pushNotification(req.app.locals.pool, { recipient: '*', type: 'backup', title: '数据库已恢复', content: `${operator(req)} 从备份 ${req.params.file} 恢复了数据库`, link: '/system' });
-    res.json({ success: true, message: '恢复成功' });
+    // 1) 有 manifest 的备份必须通过校验才允许恢复（可用 BACKUP_REQUIRE_VERIFY=false 显式放开旧备份）
+    const verification = await verifyBackup(full);
+    if (!verification.ok && process.env.BACKUP_REQUIRE_VERIFY !== 'false') {
+      return res.status(422).json({ success: false, message: '备份校验未通过，已拒绝恢复：' + verification.reason });
+    }
+    // 2) 恢复前先给当前库留一份快照，避免误恢复不可逆
+    let snapshot = null;
+    if (process.env.BACKUP_PRE_RESTORE_SNAPSHOT !== 'false') {
+      const snapName = `pre_restore_${new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14)}.sql`;
+      try {
+        const snap = await createSecureBackup(pool, snapName);
+        snapshot = { name: snapName, sha256: snap.manifest.sha256 };
+      } catch (e) {
+        return res.status(500).json({ success: false, message: '恢复前快照创建失败，已中止恢复：' + e.message });
+      }
+    }
+    // 3) 解密并恢复（MySQL 多语句 / PostgreSQL 协议栈事务内多语句）
+    opened = await openBackup(full);
+    const sql = fs.readFileSync(opened.path, 'utf8');
+    const driver = process.env.DB_DRIVER || 'mysql';
+    if (driver === 'mysql') {
+      const { createConnection } = await import('mysql2/promise');
+      const dbCfg = { host: process.env.DB_HOST || '127.0.0.1', port: +(process.env.DB_PORT || 3306), user: process.env.DB_USER || 'root', password: process.env.DB_PASSWORD, database: process.env.DB_NAME, multipleStatements: true };
+      const conn = await createConnection(dbCfg);
+      try {
+        await conn.query("SET SESSION sql_mode = ''");
+        await conn.query('SET FOREIGN_KEY_CHECKS = 0');
+        await conn.query(sql);
+        await conn.query('SET FOREIGN_KEY_CHECKS = 1');
+      } finally { try { await conn.end(); } catch {} }
+    } else if (PG_DRIVERS.includes(driver)) {
+      const client = await pool.connect(); // pg.Pool.connect()，app.locals.pool 在 PG 模式下是原生 pgPool
+      try {
+        await client.query('BEGIN');
+        await client.query(sql);
+        await client.query('COMMIT');
+      } catch (e) {
+        await client.query('ROLLBACK').catch(() => {});
+        throw e;
+      } finally { client.release(); }
+    } else {
+      throw new Error(`DB_DRIVER=${driver} 暂无备份恢复实现`);
+    }
+    audit(pool, req, {
+      action: 'backup_restore', module: 'system', targetName: req.params.file,
+      detail: `从备份恢复数据库${snapshot ? `（已留恢复前快照 ${snapshot.name}）` : ''}`,
+    });
+    pushNotification(pool, { recipient: '*', type: 'backup', title: '数据库已恢复', content: `${operator(req)} 从备份 ${req.params.file} 恢复了数据库`, link: '/system' });
+    res.json({ success: true, message: '恢复成功', data: { verification: { ok: verification.ok }, snapshot } });
   } catch (e) {
     console.error('[恢复失败]', e);
-    res.status(500).json({ success: false, message: '恢复备份失败' });
-  } finally { try { await conn.end(); } catch {} }
+    res.status(500).json({ success: false, message: '恢复备份失败：' + e.message });
+  } finally {
+    if (opened) closeBackup(opened);
+  }
 });
 
 // ==================== 个人中心 / 账号 ====================

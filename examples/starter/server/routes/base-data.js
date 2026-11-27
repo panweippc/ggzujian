@@ -6,16 +6,10 @@
 import express from 'express';
 import { getOperator } from '@panweippc/auth-kit';
 import { writeAudit } from '../middleware/audit.js';
+import { adminOnly } from '../middleware/role.js';
 
 const router = express.Router();
 const poolOf = (req) => req.app.locals.pool;
-const ADMIN_ROLES = ['admin', '系统管理员', '总经理'];
-const adminOnly = (req, res, next) => {
-  const role = req.user?.role || req.user?.roleName || '';
-  const name = req.user?.name || req.user?.username || '';
-  return (ADMIN_ROLES.includes(role) || name === 'admin')
-    ? next() : res.status(403).json({ success: false, message: '无权限，仅管理员可操作' });
-};
 const audit = (req, action, detail, targetName = '') =>
   writeAudit(poolOf(req), req, {
     userId: String(req.user?.id || ''), username: getOperator(req), ip: req.ip,

@@ -1,0 +1,66 @@
+name: 'Starter Gate'
+description: 'starter 底座公共门禁：后端测试 + 前端构建 + 镜像构建（各项目薄配置直接复用）'
+inputs:
+  working-directory:
+    description: 'starter 项目相对仓库根的路径'
+    required: false
+    default: 'examples/starter'
+  node-version:
+    description: 'Node.js 版本'
+    required: false
+    default: '20'
+  run-docker-build:
+    description: '是否执行 docker build 门禁'
+    required: false
+    default: 'true'
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: 'npm'
+        cache-dependency-path: ${{ inputs.working-directory }}/server/package-lock.json
+
+    - name: 后端依赖与测试
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}/server
+      run: |
+        npm ci --no-audit --no-fund
+        npm test
+
+    - name: 菜单/路由/导览/i18n 一致性门禁
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: node scripts/check-consistency.mjs
+
+    - name: 环境变量完整性门禁
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}/server
+      run: node scripts/check-env.mjs
+
+    - name: 多数据库方言静态门禁
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}/server
+      run: |
+        node scripts/check-compat.mjs --driver postgres
+        node scripts/generate-dialect-ddl.mjs --check
+
+    - name: OpenAPI 规范幂等门禁
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}/server
+      run: node scripts/generate-openapi.mjs --check
+
+    - name: 前端依赖与构建
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}/web
+      run: |
+        npm install --no-audit --no-fund
+        npm run build
+
+    - name: 镜像构建门禁
+      if: ${{ inputs.run-docker-build == 'true' }}
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: docker build --tag starter-ci:${{ github.sha }} .

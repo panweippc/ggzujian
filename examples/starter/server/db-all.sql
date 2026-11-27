@@ -733,3 +733,73 @@ INSERT IGNORE INTO ai_inspect_rules (name, ruleType, config) VALUES
 ('慢接口堆积', 'anomaly', JSON_OBJECT('metric','slow_request','threshold',20,'windowMinutes',10));
 
 SELECT 'db-extend-platform.sql applied' AS result;
+
+-- ============ 以下来自 db-extend-signature.sql ============
+-- ============================================================
+-- 电子签名 / 盖章扩展（2026-11-26）
+-- 文档摘要 + HMAC 签章 + 验签 + 撤销记录；与工作流实例关联
+-- 依赖：platform 扩展的工作流实例表（非强依赖）
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS signatures (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  docId VARCHAR(128) NOT NULL COMMENT '业务文档标识（如 workflow_instances.id 或合同号）',
+  docType VARCHAR(64) NOT NULL DEFAULT 'contract' COMMENT '文档类型：contract/workflow/other',
+  docHash CHAR(64) NOT NULL COMMENT '文档内容 SHA-256 摘要（Hex）',
+  signer VARCHAR(64) NOT NULL COMMENT '签署人用户名',
+  signerName VARCHAR(128) NOT NULL DEFAULT '' COMMENT '签署人显示名',
+  sealId VARCHAR(64) NOT NULL DEFAULT '' COMMENT '印章标识',
+  signature CHAR(64) NOT NULL COMMENT 'HMAC-SHA256 签名（64位Hex），对 docHash+signer+sealId+signedAt 签名',
+  signedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  ip VARCHAR(64) DEFAULT '' COMMENT '签署 IP',
+  userAgent VARCHAR(255) DEFAULT '' COMMENT '签署 UA',
+  status TINYINT NOT NULL DEFAULT 1 COMMENT '1有效 0已撤销',
+  revokedAt DATETIME DEFAULT NULL,
+  revokedBy VARCHAR(64) DEFAULT '',
+  reason VARCHAR(255) DEFAULT '' COMMENT '撤销原因',
+  createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_sig_doc (docId, status),
+  KEY idx_sig_signer (signer, signedAt)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='电子签章记录';
+
+CREATE TABLE IF NOT EXISTS seals (
+  id VARCHAR(64) NOT NULL COMMENT '印章标识（UUID）',
+  name VARCHAR(128) NOT NULL COMMENT '印章名称',
+  owner VARCHAR(64) NOT NULL COMMENT '所属人/部门',
+  color VARCHAR(32) DEFAULT '#dc2626' COMMENT '显示颜色',
+  imgData LONGTEXT COMMENT '印章图片 base64（可选）',
+  status TINYINT NOT NULL DEFAULT 1 COMMENT '1启用 0停用',
+  createdBy VARCHAR(64) DEFAULT '',
+  createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_seal_owner (owner, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='印章管理';
+
+-- ============ 以下来自 db-extend-data-security.sql ============
+-- ============================================================
+-- 数据安全扩展：查询出口分级管控（导出审批单）
+-- 依赖：db.sql（基础库）
+-- 说明：本文件已注册到 scripts/sql-files.mjs，bundle-sql 会自动合入 db-all.sql
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS data_export_approvals (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  requestNo VARCHAR(32) NOT NULL COMMENT '申请单号 EXP+时间戳+随机码',
+  schemaKey VARCHAR(64) NOT NULL COMMENT '导出模板 key',
+  tableName VARCHAR(64) NOT NULL COMMENT '数据表',
+  riskLevel VARCHAR(16) NOT NULL COMMENT '风险等级 low/medium/high',
+  requestedBy VARCHAR(64) NOT NULL COMMENT '申请人',
+  requestedAt DATETIME NOT NULL,
+  reason VARCHAR(500) COMMENT '导出用途',
+  rowLimit INT NOT NULL DEFAULT 10000 COMMENT '批准行数上限',
+  status VARCHAR(16) NOT NULL DEFAULT 'pending' COMMENT 'pending/approved/rejected/expired/used',
+  approvedBy VARCHAR(64) COMMENT '审批人（auto=低风险自动放行）',
+  approvedAt DATETIME,
+  expiresAt DATETIME NOT NULL COMMENT '审批单有效期',
+  createdAt DATETIME NOT NULL,
+  updatedAt DATETIME NOT NULL,
+  UNIQUE KEY uk_export_request (requestNo),
+  KEY idx_export_status (status),
+  KEY idx_export_requester (requestedBy)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='数据导出审批单';

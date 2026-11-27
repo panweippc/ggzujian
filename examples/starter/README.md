@@ -118,7 +118,7 @@ cd web && npm i && npm run dev   # 默认监听 3008，被占用会自动顺延
 - **全留痕**：网关自动审计所有写操作（含未埋点接口）+ 手动审计自动去重；日志哈希链防篡改（`/api/audit/verify-chain`）、归档（`/api/audit/archive`）、增强查询（`/api/audit/logs/enhanced`）、危险操作 webhook 告警
 - **回收站**：顶栏 ♻，删除的文件/记录进回收站，保留 30 天（可配 `RECYCLE_KEEP_DAYS`）自动清除，支持恢复/彻底清除；后端 `/api/recycle-bin*`
 - **网关运维与可观测**：`/metrics`（Prometheus 文本指标：网关请求/慢请求/接口耗时错误 + Node.js 内存/CPU/事件循环 + 系统负载 + 实例信息）、Grafana 面板（docker-compose 一键起，自动加载）、`/api/api-docs.json`（自动生成接口清单）、维护模式开关、写接口幂等键（`Idempotency-Key` 请求头）、版本响应头
-- **工程化**：`npm test`（单测）、`node scripts/migrate.mjs`（版本化迁移）、`npm run sql:bundle`（生成一次性导入合集）、Dockerfile + docker-compose 一键起、组件与接口文档（`/component-docs`）、配置推送（dev→prod）
+- **工程化**：`npm test`（Vitest，73 用例：登录/鉴权/权限三条关键路径 + Excel/签章/SSE/预览/Cron 底座）、`node scripts/migrate.mjs`（版本化迁移）、`npm run sql:bundle`（生成一次性导入合集）、Dockerfile + docker-compose 一键起、组件与接口文档（`/component-docs`）、配置推送（dev→prod）
 - **平台化**（`/workflow`、`/platform`、`/ai-ops`、`/low-code`）：工作流引擎（流程定义/发起/待办/审批）、表单设计器、报表 BI、多租户与套餐、数据分级与字段加密、委托授权、事件订阅 Webhook、ETL 管线、开放平台 API 密钥；稳定性（熔断/缓存/特性开关）、可观测（trace/结构化日志/UEBA）、AI 助手（聊天/RAG/NL2SQL/智能巡检）、低代码搭建器
 
 > 平台化能力**默认全部走本地实现、零外部依赖**：缓存=内存 LRU、事件总线=内存、加密=AES-256-GCM、AI=内置演示、trace=内存环形缓冲。在 `.env` 填 `REDIS_URL`/`MQ_URL`/`KMS_URL`/`LLM_API_URL`/`OTLP_ENDPOINT`/`VECTOR_DB_URL` 后切换到对应真实适配器（适配器骨架在 `server/services/platform.js`，未接入真实驱动时明确提示，不静默降级）。
@@ -130,14 +130,96 @@ cd web && npm i && npm run dev   # 默认监听 3008，被占用会自动顺延
 后端 `/metrics` 已内置 Prometheus 文本指标，无需外部依赖即可用 curl 查看。要配可视化面板，用 docker-compose 一键起 Prometheus + Grafana：
 
 ```bash
-# 与 app 一起启动整套监控（首次会拉镜像）
-docker compose up -d app prometheus grafana
+# 首次准备密钥（必填，无弱默认值）
+cp .env.docker.example .env   # 填写 DB_PASSWORD / JWT_SECRET / SIGN_SECRET / GRAFANA_ADMIN_PASSWORD
+
+# 本地开发（暴露 3306/9090/3000 便于调试）
+docker compose up -d
 # Prometheus: http://localhost:9090   （已配好抓 app:3011/metrics）
-# Grafana:    http://localhost:3000   （默认 admin / admin123，可改 .env 的 GRAFANA_ADMIN_*）
-# 登录 Grafana 后「Dashboards」里已有 Starter 服务监控总览，无需手动导入
+# Grafana:    http://localhost:3000   （账号见 .env 的 GRAFANA_ADMIN_*）
+
+# 生产（安全基线：数据库/监控端口均不映射公网，仅 app:3011 供反代）
+docker compose -f docker-compose.base.yml -f docker-compose.prod.yml up -d
 ```
 
+登录 Grafana 后「Dashboards」里已有 Starter 服务监控总览，无需手动导入。镜像以非 root 用户运行，app 带 `/api/health` 健康检查。
+
 配置文件都在 `monitoring/`：`prometheus.yml`（抓取目标）、`grafana/provisioning/`（数据源 + 面板自动加载）、`grafana/dashboards/starter-dashboard.json`（10 个面板：请求量/慢请求/接口耗时/错误率/内存/CPU/负载/事件循环延迟等）。若已有自建 Prometheus，直接把抓取目标指向你的后端 `/metrics` 即可，面板 JSON 可单独导入。
+
+### 开发效率底座（7 项补强）
+
+| 能力 | 入口 | 说明 |
+|---|---|---|
+| 测试体系 | `cd server && npm test` | Vitest 73 用例：登录（验证码/密码/锁定/密钥轮换）、鉴权（白名单/伪造 token/改密/换设备）、权限（角色拒绝）+ 各底座单测 |
+| CRUD 生成器 | `node scripts/generate-crud.mjs --sql server/db.sql --table products`（或 `--config scripts/entities/product.json`） | 从表结构/实体定义生成后端 CRUD 路由 + 前端 CrudPanel 页面 + SQL；加 `--register` 一键接线（自动挂路由/菜单/导览/Excel schema，幂等可重复执行） |
+| Excel 导入导出 | `/api/excel/{template,check,import,export}/:key` | schema 注册式：模板下载、字段校验（必填/类型/枚举/范围/正则）、错误行回显、事务导入全回滚；新增实体只需在 `routes/excel.js` 的 `SCHEMAS` 加一项 |
+| 电子签章 | `/api/signatures/*`、`/api/seals` | SHA-256 文档摘要 + HMAC-SHA256 签名 + 常量时间验签 + 撤销；`db-extend-signature.sql` 迁移；CA 级签名需接 KMS（预留 `KMS_URL`） |
+| SSE 实时推送 | `GET /api/sse/notifications?token=...` | 消息中心 EventSource 替换轮询：发送站内信即推，断线回退低频轮询并自动重连；`/api/sse/stats` 看连接数；心跳 25s |
+| 文件在线预览 | `/api/files/:key/preview-policy`、`/preview` | 图片/PDF/TXT/MD/CSV/JSON 内联；Office 需配 `CONVERT_URL`（LibreOffice/OnlyOffice），未配置时接口明确 501 提示下载，不静默失败 |
+| 任务可视化配置 | `/tasks` 页 + `CronEditor.vue` + `POST /api/cron/preview` | 快捷预设 + 分段选择 + 人类可读描述 + 下次执行时间预览；任务列表「执行日志」回溯 `task_execution_history` |
+
+> 测试命令在 `server/` 目录执行（`npm test` / `npm run test:watch` / `npm run test:coverage`）。
+
+### 工程化与安全加固
+
+- **CI/CD**（方案 C）：`.github/actions/starter-check`（公共门禁）+ `.github/workflows/ci.yml`（PR/push 自动跑测试+构建+镜像）；Jenkins 用仓库内 `ci/pipeline.groovy` 公共模板 + 根目录薄 `Jenkinsfile`，新项目接入见 `ci/README.md`。
+- **Docker**（方案 A）：`docker-compose.base.yml`（安全基线，密钥必填、管理端口不暴露）+ `docker-compose.prod.yml`（生产覆盖：资源限制/日志滚动/no-new-privileges）+ 默认 `docker-compose.yml`（本地开发）。Dockerfile 非 root 运行。
+- **安全**：8 处重复的 `adminOnly` 统一到 `server/middleware/role.js`；签章密钥独立 `SIGN_SECRET`；helmet 安全响应头（CSP 关闭，由前端管控）。依赖漏洞修复见 `server/SECURITY.md`。
+
+### 自动化工具箱（一致性 / 编排 / 门禁）
+
+所有命令在对应目录执行（`scripts/` 下除标注外均在 `server/`）。npm script 入口见 `server/package.json`。
+
+**门禁类（已接入 GitHub Actions + Jenkins，提交即跑）**
+
+| 命令 | 作用 |
+|---|---|
+| `node scripts/check-consistency.mjs`（starter 根目录） | 菜单/路由/导览/i18n 四方一致性 + 悬挂路由扫描；防「新增菜单漏导览」「字典漏 key 白屏」复发 |
+| `cd server && node scripts/check-env.mjs` | 扫 `process.env.X` 对照 `.env.example`，检出未声明项与内置变量误报 |
+| `cd server && node scripts/check-compat.mjs --driver postgres` | 业务 SQL 方言兼容扫描（见下节） |
+| `cd server && node scripts/check-audit.mjs --level critical --omit dev --allow-list xlsx` | npm audit 阈值门禁，可豁免已评估漏洞 |
+| `cd server && npm run check:all` | 一次跑齐上面 env + compat + audit 三道门禁 |
+
+**生成 / 编排类（按需手动执行）**
+
+| 命令 | 作用 |
+|---|---|
+| `node scripts/generate-crud.mjs --config scripts/entities/product.json --register` | CRUD 一键生成 + 自动注册，幂等 |
+| `cd server && node scripts/init-admin.mjs --password <pwd> --dry-run` | 管理员初始化：bcrypt 哈希后幂等 upsert，去掉 `--dry-run` 实际写入；`--force-reset` 强制重置 |
+| `cd server && node scripts/backup-orchestrator.mjs --dry-run` | 备份全链路编排：dump → manifest 校验 → 加密 → 异地复制 → 过期清理，可挂 cron |
+| `cd server && node scripts/rotate-secrets.mjs --key data` | 密钥统一轮换协调器：字段密文轮换 + JWT/SIGN 轮换指引，`--key` 选 jwt/sign/data/backup |
+| `cd server && node scripts/generate-openapi.mjs` | 从路由源码生成 OpenAPI 3.0 规范（`--check` 校验幂等） |
+| `cd server && node scripts/check-schema-drift.mjs --dry-run` | 比对库实际结构与 `db-all.sql` 声明，出 diff（`--dry-run` 只解析 SQL 不连库） |
+| `cd server && node scripts/generate-demo-data.mjs --table employees --rows 20` | 零依赖演示数据生成（种子可复现，自动跳过 users/审计/敏感表）；`--list` 看可生成表 |
+
+> CRUD 生成器 `--register` 与一致性门禁闭环：生成时自动同步 `SIDE_MENUS` / `LOGIN_MODULES` / `router.ts` / Excel `SCHEMAS`，再由门禁校验无漂移。
+
+### 数据安全（方案 C）与多数据库兼容（方案 A）
+
+**数据安全 C —— 三层闭环**
+
+| 层 | 落地 | 用法 |
+|---|---|---|
+| 字段级加解密 | `services/field-crypto.js`（AES-256-GCM + 密钥轮换）、`services/sensitive-fields.js`（注册表） | employees 的手机/身份证/邮箱/地址等写库前加密、读库后解密；非全量数据范围再脱敏。存量明文：`node scripts/migrate-encrypt-fields.mjs --dry-run` 预演，确认后去掉 `--dry-run` 执行；旧密钥密文加 `--rotate` 迁移 |
+| 查询出口分级 | `POST /api/data-export/request` → 管理员 `POST /api/data-export/approvals/:no/approve` → `GET /api/excel/export/:key?approvalNo=...` | 中/高风险模板必须先审批，审批单一性消费；导出 xlsx 自动附「导出信息」水印 sheet，申请/审批/导出全程审计。`EXPORT_POLICY=medium` 为默认阈值 |
+| 备份完整性 | `services/backup-security.js` + `db-extend-data-security.sql` | 每次备份产出 `.manifest.json`（SHA-256/表数/行数）；`GET /api/backups/:file/verify` 依次校验落盘哈希、解密后哈希、SQL 干跑；恢复前强制校验且自动留快照，并要求二次密码 |
+
+备份可选 AES-256-GCM 加密落盘（`BACKUP_ENCRYPT_KEY`）、异地复制（`BACKUP_REMOTE_DIR`）、过期清理（`BACKUP_RETENTION_DAYS`）。密钥缺失时明确拒绝校验/解密，不会静默按明文处理。
+
+**多数据库 A —— PostgreSQL 协议栈 + 全国产库方言兼容**
+
+- **一套 SQL 跑多种库**：`DB_DRIVER=postgres/kingbase/opengauss/dameng` 走 `pg` 真驱动（国产库 PG 兼容模式），业务 SQL 仍按 MySQL 风格书写，`services/pg-compat.js` 按方言自动改写：
+  - `ON DUPLICATE KEY UPDATE` → `ON CONFLICT (唯一键) DO UPDATE SET …=EXCLUDED.…`（唯一键登记表在 `services/dialects.js` 的 `UPSERT_KEYS`）
+  - `INSERT IGNORE` → `ON CONFLICT DO NOTHING`；`GROUP_CONCAT` → `STRING_AGG`/`LISTAGG`（按方言）；`DATABASE()`/`IFNULL()` → PG 等价写法
+  - 反引号标识符、`?` 占位符、INSERT `RETURNING *` 提取 insertId、事务 BEGIN/COMMIT/ROLLBACK 全部兼容，路由零改动
+  - 无法安全改写的语法（`SHOW` / `STRAIGHT_JOIN` / `REPLACE INTO` 等）明确报错；未登记唯一键的 upsert 表也明确报错并提示补登记——不静默产出错误结果
+- **自动识别数据库**：`DB_DRIVER=auto`（或留空）时按连接串 scheme / 端口推断协议族，连上后用 `version()` 识别真实驱动（人大金仓/openGauss/达梦/PostgreSQL/MySQL），识别不出明确报错并打印原始版本串。`DB_STRICT_DRIVER_MATCH=true` 可在配置与识别不一致时启动失败。
+- **启动自检**：连库后跑冒烟 SQL（连接 / 版本 / 函数 / upsert / 分页），每条都经兼容层转换，失败时指出「哪个方言 + 哪条 SQL」。`DB_STRICT_BOOT=true` 让生产启动失败；`DB_SKIP_COMPAT_CHECK=true` 紧急情况跳过。
+- **国产库建库脚本**：`node scripts/generate-dialect-ddl.mjs` 从 MySQL 源脚本生成 `sql/dialect/{postgres,kingbase,opengauss,dameng}.sql`（自增/类型/注释/索引/表选项全部转换）。CI 用 `--check` 保证生成脚本与源脚本同步。
+- **CI 静态门禁**：`node scripts/check-compat.mjs --driver postgres` 扫描业务 SQL，阻断无法兼容的语法与未登记的 upsert 表，把"上线才报错"提前到提交阶段。已接入 GitHub Actions 与 Jenkins 模板。
+- 备份/恢复按驱动分发到 `services/db-backup.js`；`mongodb` / `influxdb` 仍为占位适配器（非关系型，现有 SQL 路由不适用），未接入即明确报错，不做假兼容。
+
+> ⚠️ **真机验证边界**：当前无国产库真机环境，以上方言改写/自动识别规则已通过 mock 单测与静态门禁，但**尚未在人大金仓/openGauss/达梦实例上实跑**。首次上线前请在小库演练；若某库 `version()` 串不在识别表或某语法改写不符，按报错提示在 `db-compat-check.js`（VERSION_RULES）或 `pg-compat.js`（改写规则）补充即可，无需改业务代码。
 
 > 扩展表脚本都带演示数据（部门/角色/员工 + 2 条通知 + 字典 + 配置项 + 3 个任务），登录后即可看到效果。创建备份、添加用户、修改密码等操作会自动推送通知。
 

@@ -16,16 +16,11 @@ import { getOperator } from '@panweippc/auth-kit';
 import { writeAudit } from '../middleware/audit.js';
 import { storageDriver, setRuntimeConfig, refreshRuntimeConfig } from '../services/runtime-config.js';
 import { addRecycleItem } from './recycle.js';
+import { previewPolicy, buildConvertUrl } from '../services/file-preview.js';
+import { adminOnly } from '../middleware/role.js';
 
 const router = express.Router();
 const poolOf = (req) => req.app.locals.pool;
-const adminOnly = (req, res, next) => {
-  const role = req.user?.role || req.user?.roleName || '';
-  const name = req.user?.name || req.user?.username || '';
-  return (['admin', '系统管理员', '总经理'].includes(role) || name === 'admin')
-    ? next() : res.status(403).json({ success: false, message: '无权限，仅管理员可操作' });
-};
-
 const DEFAULT_DRIVER = process.env.STORAGE_DRIVER || 'local';
 const UPLOAD_ROOT = path.join(process.cwd(), 'uploads', 'files');
 const SUPPORTED_DRIVERS = ['local', 'minio', 'oss'];
@@ -155,14 +150,42 @@ router.get('/files/:key/download', async (req, res) => {
   } catch (e) { res.status(500).json({ success: false, message: '下载失败' }); }
 });
 
-/** 预览：图片/PDF 内联返回 */
+/** 预览策略查询：前端据此决定内联 <img>/<iframe>、走转换服务、还是提示下载 */
+router.get('/files/:key/preview-policy', async (req, res) => {
+  const key = path.basename(req.params.key);
+  const policy = previewPolicy(key, !!process.env.CONVERT_URL);
+  const convertUrl = policy.mode === 'convert' && process.env.CONVERT_URL
+    ? buildConvertUrl(process.env.CONVERT_URL, `/api/files/${key}/preview`)
+    : null;
+  res.json({
+    success: true,
+    data: {
+      ...policy,
+      convertUrl,
+      note: policy.mode === 'convert' && !convertUrl
+        ? 'Office 预览需接入文档转换服务：在 .env 配置 CONVERT_URL（LibreOffice/OnlyOffice 等），未配置时只能下载'
+        : policy.mode === 'unsupported' ? '该文件类型不支持在线预览，请下载后查看' : '',
+    },
+  });
+});
+
+/** 预览：图片/PDF/文本内联返回；Office 未接转换服务时明确 501 */
 router.get('/files/:key/preview', async (req, res) => {
   const key = path.basename(req.params.key);
   const file = path.join(UPLOAD_ROOT, key);
   if (!fs.existsSync(file)) return res.status(404).json({ success: false, message: '文件不存在' });
-  const ext = path.extname(key).toLowerCase();
-  const inlineTypes = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp', '.pdf': 'application/pdf', '.svg': 'image/svg+xml' };
-  res.setHeader('Content-Type', inlineTypes[ext] || 'application/octet-stream');
+  const policy = previewPolicy(key, !!process.env.CONVERT_URL);
+  if (policy.mode === 'convert') {
+    return res.status(501).json({
+      success: false,
+      message: 'Office 在线预览需接入文档转换服务（.env 配置 CONVERT_URL），当前请下载后查看',
+    });
+  }
+  if (policy.mode === 'unsupported') {
+    return res.status(415).json({ success: false, message: '该文件类型不支持在线预览，请下载后查看' });
+  }
+  res.setHeader('Content-Type', policy.mime);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
   fs.createReadStream(file).pipe(res);
 });
 

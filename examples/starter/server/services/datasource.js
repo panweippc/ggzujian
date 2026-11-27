@@ -3,27 +3,20 @@
  * 对上层路由屏蔽底层存储差异：业务只见 query/execute/transaction 三个方法。
  *
  * DB_DRIVER 切换驱动：
- *   - mysql（默认）：mysql2/promise 真实实现
- *   - postgres / dameng / kingbase / opengauss：预留适配器接口（国产库多兼容 PG 协议，
- *     装对应驱动后在此实现 createPgLikeAdapter 即可），未接入时启动即明确报错，不静默降级
- *   - mongodb / influxdb：预留接口（NoSQL / 时序），同上
+ *   - mysql：mysql2/promise 真实实现（默认）
+ *   - postgres：pg 真实适配器（经 pg-compat 兼容层，现有路由零改动）
+ *   - kingbase / opengauss / dameng：复用 PostgreSQL 协议栈（国产库 PG 兼容模式），
+ *     连接参数用 PG_URL 或 DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME
+ *   - mongodb / influxdb：预留适配器接口，未接入时启动即明确报错，不静默降级
  *
- * 方言层：分页/标识符引号等差异统一在 dialect 中，业务 SQL 保持可移植写法。
+ * 方言层：分页/标识符引号差异统一在 dialect 中；pg-compat 负责 ` → " 与 ? → $N。
  */
 import mysql from 'mysql2/promise';
+import pg from 'pg';
+import { createPgCompatPool, PG_DRIVERS } from './pg-compat.js';
+import { DIALECTS } from './dialects.js';
 
 const DRIVER = (process.env.DB_DRIVER || 'mysql').toLowerCase();
-
-/** 每种驱动的 SQL 方言（分页写法、标识符引号） */
-const DIALECTS = {
-  mysql: { name: 'mysql', quote: (s) => `\`${s}\``, placeholder: '?' },
-  postgres: { name: 'postgres', quote: (s) => `"${s}"`, placeholder: '$1' },
-  dameng: { name: 'dameng', quote: (s) => `"${s}"`, placeholder: '?' },   // 达梦：类 Oracle/PG
-  kingbase: { name: 'kingbase', quote: (s) => `"${s}"`, placeholder: '$1' }, // 人大金仓：兼容 PG
-  opengauss: { name: 'opengauss', quote: (s) => `"${s}"`, placeholder: '$1' }, // openGauss：兼容 PG
-  mongodb: { name: 'mongodb', quote: (s) => s, placeholder: null },
-  influxdb: { name: 'influxdb', quote: (s) => s, placeholder: null },
-};
 
 /** MySQL 适配器：把 mysql2 pool 包成统一接口 */
 function createMysqlAdapter(pool) {
@@ -49,14 +42,31 @@ function createMysqlAdapter(pool) {
         conn.release();
       }
     },
-    raw: pool, // 需要驱动专有能力时可从这里拿原生 pool（骨架内已有路由直接用 pool.execute，保持兼容）
+    raw: pool,
     ping: async () => { const [r] = await pool.execute('SELECT 1 AS ok'); return r?.[0]?.ok === 1; },
   };
 }
 
+/** PostgreSQL 协议栈适配器（含国产库 PG 兼容模式） */
+function createPgDataSource(driver) {
+  const pgPool = new pg.Pool({
+    connectionString: process.env.PG_URL || process.env.DATABASE_URL || undefined,
+    host: process.env.DB_HOST || '127.0.0.1',
+    port: +(process.env.DB_PORT || 5432),
+    user: process.env.DB_USER || 'postgres',
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+    max: +(process.env.DB_POOL_MAX || 10),
+    ssl: process.env.PG_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+  });
+  const adapter = createPgCompatPool(pgPool, { driver });
+  adapter.dialect = DIALECTS[driver]; // transaction / getConnection 由 pg-compat 统一提供
+  return adapter;
+}
+
 /** 预留适配器：明确报错，避免"配了却静默走 MySQL"的假兼容 */
 function createPlaceholderAdapter(driver) {
-  const msg = `DB_DRIVER=${driver} 的适配器尚未接入。请安装对应驱动并在 server/services/datasource.js 的 ADAPTERS 中实现后重试（国产库多兼容 PostgreSQL 协议，可参考 createMysqlAdapter 包装 pg 客户端）。`;
+  const msg = `DB_DRIVER=${driver} 的适配器尚未接入。请安装对应驱动并实现后重试（PostgreSQL 协议栈已支持：${PG_DRIVERS.join(', ')}）。`;
   const fail = () => { throw new Error(msg); };
   return {
     driver,
@@ -67,23 +77,24 @@ function createPlaceholderAdapter(driver) {
   };
 }
 
-export function createDataSource() {
-  const pool = mysql.createPool({
-    host: process.env.DB_HOST || '127.0.0.1',
-    port: +(process.env.DB_PORT || 3306),
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    charset: 'utf8mb4',
-  });
+export function createDataSource(overrides = {}) {
+  const driver = String(overrides.driver || DRIVER).toLowerCase();
 
-  let adapter;
-  if (DRIVER === 'mysql') adapter = createMysqlAdapter(pool);
-  else if (DIALECTS[DRIVER]) adapter = createPlaceholderAdapter(DRIVER);
-  else throw new Error(`未知 DB_DRIVER=${DRIVER}，支持：${Object.keys(DIALECTS).join(', ')}`);
-
-  return adapter;
+  if (driver === 'mysql') {
+    return createMysqlAdapter(mysql.createPool({
+      host: process.env.DB_HOST || '127.0.0.1',
+      port: +(process.env.DB_PORT || 3306),
+      user: process.env.DB_USER || 'root',
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME,
+      charset: 'utf8mb4',
+    }));
+  }
+  if (PG_DRIVERS.includes(driver)) return createPgDataSource(driver);
+  if (DIALECTS[driver]) return createPlaceholderAdapter(driver);
+  throw new Error(`未知 DB_DRIVER=${driver}，支持：${Object.keys(DIALECTS).join(', ')}`);
 }
 
+export { DIALECTS };
 export const SUPPORTED_DRIVERS = Object.keys(DIALECTS);
 export default createDataSource;

@@ -1,0 +1,51 @@
+# 生产覆盖层（叠加在 docker-compose.base.yml 之上）
+# 用法：docker compose -f docker-compose.base.yml -f docker-compose.prod.yml up -d
+# 说明：base 已不暴露 MySQL/Prometheus/Grafana 端口，仅 app:3011 供反代接入。
+version: '3.8'
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: '20m'
+    max-file: '5'
+
+services:
+  mysql:
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+
+  app:
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          memory: 256M
+
+  prometheus:
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  grafana:
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 512M

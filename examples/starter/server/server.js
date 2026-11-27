@@ -5,6 +5,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -25,6 +26,11 @@ import gatewayExtRouter from './routes/gateway-ext.js';
 import enterpriseRouter from './routes/enterprise.js';
 import platformRouter from './routes/platform.js';
 import platformOpsRouter from './routes/platform-ops.js';
+import excelRouter from './routes/excel.js';
+import dataExportRouter from './routes/data-export.js';
+import signatureRouter from './routes/signature.js';
+import { createSseRouter } from './routes/sse.js';
+import { sseBus } from './services/sse-bus.js';
 import {
   traceMiddleware, auditContextMiddleware, timingMiddleware, createRateLimiters, createLoginLimiter,
   maintenanceMiddleware, versionHeaderMiddleware,
@@ -33,12 +39,14 @@ import { idempotencyMiddleware } from './middleware/idempotency.js';
 import { writeAudit } from './middleware/audit.js';
 import { autoAuditMiddleware } from './middleware/auto-audit.js';
 import { createDataSource } from './services/datasource.js';
+import { prepareDatabase } from './services/db-compat-check.js';
 
 // 统一数据接入层：业务通过 dataSource.query/execute/transaction 访问数据，屏蔽底层驱动差异。
+// 启动前自动识别真实数据库（DB_DRIVER=auto / 留空时）并跑方言冒烟自检，把"上线才报错"提前到启动期。
 // app.locals.pool 指向原生连接池，保持已有路由（req.app.locals.pool.execute）零改动兼容。
-const dataSource = createDataSource();
+const { dataSource, driver: resolvedDriver } = await prepareDatabase(createDataSource);
 const pool = dataSource.raw;
-console.log(`[datasource] driver=${dataSource.driver}${dataSource.__placeholder ? ' (预留适配器，尚未接入真实驱动)' : ''}`);
+console.log(`[datasource] driver=${resolvedDriver}${dataSource.__placeholder ? ' (预留适配器，尚未接入真实驱动)' : ''}`);
 
 // ① JWT
 const { signToken, verifyToken } = createSecurity({
@@ -79,6 +87,9 @@ app.locals.alert = alert; // 供网关慢接口告警 / 消息中心复用
 // ⭐ 统一网关（底座第3部分）：CORS → TraceID → 限流 → 计时 → 审计上下文 → body 解析
 // 暴露 X-Request-Id 给前端，便于全链路检索
 app.use(cors({ exposedHeaders: ['X-Request-Id', 'Retry-After', 'X-API-Version'] }));
+// 安全响应头（helmet）：默认 CSP 会阻止前端内联脚本/样式，本项目由前端自行管控，故关闭 CSP；
+// 其余 X-Content-Type-Options / X-Frame-Options / HSTS / Referrer-Policy 等按默认启用。
+app.use(helmet({ contentSecurityPolicy: false }));
 app.use(traceMiddleware);
 app.use(versionHeaderMiddleware());
 app.use(maintenanceMiddleware());
@@ -207,6 +218,10 @@ app.get('/api/ip-check', async (req, res) => {
   } catch { res.json({ success: true, allowed: true }); }
 });
 
+// SSE 实时推送：EventSource 走 query token 自行鉴权，必须先于全局 requireAuth 挂载
+app.use('/api', createSseRouter(verifyToken));
+setInterval(() => sseBus.heartbeat(), 25_000).unref?.();
+
 // —— 挂载鉴权：之后的接口都需要 token ——
 app.use('/api', requireAuth);
 
@@ -238,6 +253,14 @@ app.use('/api', enterpriseRouter);
 // 平台化能力（工作流/表单/报表/多租户/合规/集成）与 稳定性/可观测/AI
 app.use('/api', platformRouter);
 app.use('/api', platformOpsRouter);
+
+// 通用 Excel 导入导出底座（模板/校验/错误回显/事务导入，schema 注册式扩展）
+app.use('/api', excelRouter);
+// 数据安全 C2：查询出口分级管控（导出申请/审批/水印审计）
+app.use('/api', dataExportRouter);
+
+// 电子签章（SHA-256 摘要 + HMAC 签名 + 验签 + 撤销）
+app.use('/api', signatureRouter);
 // 回收站过期自动清除：每小时扫描一次，删除超过保留期的快照及其物理文件
 setInterval(() => {
   purgeExpired(pool).then((n) => {

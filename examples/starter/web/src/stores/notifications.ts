@@ -17,6 +17,8 @@ export const useNotificationStore = defineStore('notifications', () => {
   const unreadCount = ref(0);
   const loading = ref(false);
   let timer: ReturnType<typeof setInterval> | null = null;
+  let es: EventSource | null = null;
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   let started = false;
   let loadSeq = 0;
   let loadedUser = '';
@@ -69,15 +71,41 @@ export const useNotificationStore = defineStore('notifications', () => {
     list.value = list.value.filter((n) => n.id !== id);
   }
 
+  /** SSE 连接：收到 notification 事件立即刷新；断线退化为低频轮询并尝试重连 */
+  function connectSSE() {
+    const token = localStorage.getItem('token');
+    if (!token || typeof EventSource === 'undefined') { startFallbackPolling(); return; }
+    try {
+      es = new EventSource(`/api/sse/notifications?token=${encodeURIComponent(token)}`);
+      es.addEventListener('connected', () => { stopFallbackPolling(); });
+      es.addEventListener('notification', () => { load(); }); // 有推送才刷新，零定时请求
+      es.onerror = () => {
+        es?.close(); es = null;
+        startFallbackPolling();
+        if (reconnectTimer) clearTimeout(reconnectTimer);
+        reconnectTimer = setTimeout(() => { if (started && !es) connectSSE(); }, 10_000);
+      };
+    } catch { startFallbackPolling(); }
+  }
+  function startFallbackPolling() {
+    if (timer) return;
+    timer = setInterval(load, 30_000);
+  }
+  function stopFallbackPolling() {
+    if (timer) { clearInterval(timer); timer = null; }
+  }
+
   function startPolling() {
     if (started) return;
     started = true;
     load();
-    timer = setInterval(load, 30_000);
+    connectSSE();
   }
   function stopPolling() {
-    if (timer) { clearInterval(timer); timer = null; }
     started = false;
+    stopFallbackPolling();
+    if (es) { es.close(); es = null; }
+    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
   }
 
   const unreadPreview = computed(() => list.value.filter((n) => !n.isRead).slice(0, 5));

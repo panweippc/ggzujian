@@ -22,10 +22,11 @@
         <el-table-column label="状态" width="100">
           <template #default="{ row }"><el-tag size="small" :type="row.enabled ? 'success' : 'info'">{{ row.enabled ? '启用' : '停用' }}</el-tag></template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="260" fixed="right">
           <template #default="{ row }">
             <el-switch :model-value="!!row.enabled" @change="(v:any)=>toggle(row, v)" style="margin-right:12px;vertical-align:middle" />
             <el-button link type="primary" size="small" @click="edit(row)">编辑</el-button>
+            <el-button link type="warning" size="small" @click="openHistory(row)">执行日志</el-button>
             <el-button link type="danger" size="small" @click="remove(row)">删除</el-button>
           </template>
         </el-table-column>
@@ -37,8 +38,8 @@
         <el-form-item label="任务名称"><el-input v-model="form.taskName" placeholder="如 每日数据备份" /></el-form-item>
         <el-form-item label="任务标识"><el-input v-model="form.taskKey" :disabled="editing" placeholder="如 daily_backup" /></el-form-item>
         <el-form-item label="Cron">
-          <el-input v-model="form.cron" placeholder="0 2 * * *" />
-          <div class="cron-tip">分 时 日 月 周。例：<code>0 2 * * *</code> 每天 02:00；<code>0 */6 * * *</code> 每 6 小时</div>
+          <CronEditor v-model="form.cron" />
+          <div class="cron-tip">点选快捷预设或逐段选择，右侧自动显示可读说明与下次执行时间</div>
         </el-form-item>
         <el-form-item label="说明"><el-input v-model="form.description" type="textarea" :rows="2" placeholder="任务用途说明" /></el-form-item>
         <el-form-item label="启用"><el-switch v-model="form.enabled" /></el-form-item>
@@ -48,6 +49,21 @@
         <el-button type="primary" size="small" @click="save">保存</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="historyVisible" :title="`执行日志 - ${historyTaskName}`" width="720px" destroy-on-close>
+      <el-table :data="historyRows" v-loading="historyLoading" size="small" border style="width:100%">
+        <el-table-column prop="executedAt" label="执行时间" width="180">
+          <template #default="{ row }">{{ String(row.executedAt).replace('T',' ').slice(0,19) }}</template>
+        </el-table-column>
+        <el-table-column prop="status" label="状态" width="100">
+          <template #default="{ row }"><el-tag size="small" :type="row.status==='success'?'success':'danger'">{{ row.status }}</el-tag></template>
+        </el-table-column>
+        <el-table-column prop="durationMs" label="耗时(ms)" width="100" />
+        <el-table-column prop="retryCount" label="重试次数" width="90" />
+        <el-table-column prop="message" label="说明" min-width="220" show-overflow-tooltip />
+      </el-table>
+      <template #footer><el-button size="small" @click="historyVisible = false">关闭</el-button></template>
+    </el-dialog>
   </div>
 </template>
 
@@ -55,7 +71,8 @@
 import { ref, reactive, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import PageHeaderBar from '../components/PageHeaderBar.vue';
-import { getTasks, toggleTask, createTask, updateTask, deleteTask } from '../services/api';
+import CronEditor from '../components/CronEditor.vue';
+import { getTasks, toggleTask, createTask, updateTask, deleteTask, getTaskHistory } from '../services/api';
 
 const loading = ref(false);
 const tasks = ref<any[]>([]);
@@ -63,6 +80,19 @@ const dialogVisible = ref(false);
 const editing = ref(false);
 const editingId = ref<number>(0);
 const form = reactive({ taskName: '', taskKey: '', cron: '', description: '', enabled: true });
+const historyVisible = ref(false);
+const historyLoading = ref(false);
+const historyRows = ref<any[]>([]);
+const historyTaskName = ref('');
+
+async function openHistory(row: any) {
+  historyTaskName.value = row.taskName;
+  historyVisible.value = true;
+  historyLoading.value = true;
+  try { historyRows.value = (await getTaskHistory(row.id)).data || []; }
+  catch { historyRows.value = []; ElMessage.error('加载执行日志失败'); }
+  finally { historyLoading.value = false; }
+}
 
 async function load() { loading.value = true; try { tasks.value = (await getTasks()).data || []; } finally { loading.value = false; } }
 async function toggle(row: any, v: boolean) {

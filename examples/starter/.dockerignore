@@ -3,5 +3,16 @@
 **/.git
 **/logs
 **/uploads
+**/coverage
+**/tests
+**/*.test.js
+**/*.spec.js
 *.log
 .env
+.env.*
+!.env.example
+!.env.docker.example
+Dockerfile
+docker-compose*.yml
+ci/
+.github/

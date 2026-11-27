@@ -5,8 +5,21 @@
   "type": "module",
   "scripts": {
     "dev": "node server.js",
-    "test": "node --test tests/*.test.js",
-    "sql:bundle": "node scripts/bundle-sql.mjs"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "sql:bundle": "node scripts/bundle-sql.mjs",
+    "check:env": "node scripts/check-env.mjs",
+    "check:compat": "node scripts/check-compat.mjs --driver postgres",
+    "check:audit": "node scripts/check-audit.mjs --level critical --omit dev --allow-list xlsx",
+    "check:drift": "node scripts/check-schema-drift.mjs --dry-run",
+    "check:all": "npm run check:env && npm run check:compat && npm run check:audit",
+    "gen:ddl": "node scripts/generate-dialect-ddl.mjs",
+    "gen:openapi": "node scripts/generate-openapi.mjs",
+    "gen:demo": "node scripts/generate-demo-data.mjs",
+    "init:admin": "node scripts/init-admin.mjs",
+    "backup:run": "node scripts/backup-orchestrator.mjs",
+    "secrets:rotate": "node scripts/rotate-secrets.mjs"
   },
   "dependencies": {
     "@panweippc/auth-kit": "file:../../../packages/auth-kit",
@@ -15,8 +28,16 @@
     "dotenv": "^16.4.5",
     "express": "^4.19.0",
     "express-rate-limit": "^7.5.1",
+    "helmet": "^1.3.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
-    "mysql2": "^3.9.0"
+    "mysql2": "^3.9.0",
+    "pg": "^8.23.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "supertest": "^7.3.2",
+    "vite": "^6.4.6",
+    "vitest": "^5.1.2"
   }
 }

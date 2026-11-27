@@ -1,0 +1,25 @@
+name: CI Gate
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  # 公共门禁矩阵：新增基于 starter 的项目时，只需在 matrix.project 加一行路径。
+  gate:
+    name: gate (${{ matrix.project }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - examples/starter
+    steps:
+      - uses: actions/checkout@v4
+      - name: 调用公共门禁
+        uses: ./.github/actions/starter-check
+        with:
+          working-directory: ${{ matrix.project }}
+          node-version: '20'
+          run-docker-build: 'true'

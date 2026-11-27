@@ -163,6 +163,8 @@ export const toggleTask = (id: number, enabled: boolean) => api.put(`/tasks/${id
 export const createTask = (form: Partial<ScheduledTask>) => api.post('/tasks', form).then((r) => r.data);
 export const updateTask = (id: number, form: Partial<ScheduledTask>) => api.put(`/tasks/${id}`, form).then((r) => r.data);
 export const deleteTask = (id: number) => api.delete(`/tasks/${id}`).then((r) => r.data);
+export const getTaskHistory = (id: number) => api.get(`/tasks/${id}/history`).then((r) => r.data);
+export const previewCron = (cron: string) => api.post('/cron/preview', { cron }).then((r) => r.data);
 
 // ===== 在线会话 =====
 export interface UserSession { id: number; username: string; tokenVersion: number; ipAddress: string | null; userAgent: string | null; loginAt: string; lastActiveAt: string }

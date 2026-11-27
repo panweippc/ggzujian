@@ -9,15 +9,10 @@ import crypto from 'crypto';
 import { getOperator, createOperationLog } from '@panweippc/auth-kit';
 import { writeAudit } from '../middleware/audit.js';
 import { getGatewayStats } from '../middleware/gateway.js';
+import { describe as describeCron, nextRun as nextCronRun, parse as parseCron } from '../services/cron.js';
+import { adminOnly } from '../middleware/role.js';
 
 const router = express.Router();
-const ADMIN_ROLES = ['admin', '系统管理员', '总经理'];
-const isAdmin = (req) => {
-  const role = req.user?.role || req.user?.roleName || '';
-  const name = req.user?.name || req.user?.username || '';
-  return ADMIN_ROLES.includes(role) || name === 'admin';
-};
-const adminOnly = (req, res, next) => isAdmin(req) ? next() : res.status(403).json({ success: false, message: '无权限，仅管理员可操作' });
 const poolOf = (req) => req.app.locals.pool;
 const audit = (req, action, module, detail, targetName = '') =>
   writeAudit(poolOf(req), req, {
@@ -302,6 +297,19 @@ router.post('/configs/:key/rollback', adminOnly, async (req, res) => {
 });
 
 // ==================== 定时任务 ====================
+// Cron 可视化辅助：人类可读描述 + 下次执行时间（供 CronEditor 实时预览）
+router.post('/cron/preview', adminOnly, (req, res) => {
+  const expr = String(req.body?.cron || '');
+  try {
+    parseCron(expr);
+    const d = describeCron(expr);
+    const next = nextCronRun(expr);
+    res.json({ success: true, data: { ...d, nextRunAt: next ? next.toISOString() : null } });
+  } catch (e) {
+    res.status(400).json({ success: false, message: e.message });
+  }
+});
+
 router.get('/tasks', adminOnly, async (req, res) => {
   try {
     const [rows] = await poolOf(req).execute('SELECT * FROM scheduled_tasks ORDER BY id');
