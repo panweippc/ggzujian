@@ -24,6 +24,7 @@ import WorkflowView from './views/WorkflowView.vue';
 import PlatformView from './views/PlatformView.vue';
 import AIOpsView from './views/AIOpsView.vue';
 import LowCodeView from './views/LowCodeView.vue';
+import SecurityCheckView from './views/SecurityCheckView.vue';
 
 const router = createRouter({
   history: createWebHistory(),
@@ -57,6 +58,7 @@ const router = createRouter({
         { path: 'platform', name: 'platform', component: PlatformView, meta: { title: '平台能力' } },
         { path: 'ai-ops', name: 'aiOps', component: AIOpsView, meta: { title: 'AI 运维' } },
         { path: 'low-code', name: 'lowCode', component: LowCodeView, meta: { title: '低代码搭建' } },
+        { path: 'security-check', name: 'securityCheck', component: SecurityCheckView, meta: { title: '安全自检' } },
       ]
     }
   ]

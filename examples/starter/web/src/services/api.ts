@@ -268,4 +268,44 @@ export const opsApi = {
   inspect: () => api.get('/ai/inspect').then((r) => r.data),
 };
 
+// ===== 一键安全自检（管理员）=====
+export interface SecurityCheckItem {
+  id: string;
+  name: string;
+  description: string;
+  result: string;
+  acceptsLevel: boolean;
+}
+export interface SecurityFinding {
+  level: string;
+  file: string;
+  line: number;
+  message: string;
+  detail?: string;
+}
+export interface SecurityCheckResult {
+  id: string;
+  name: string;
+  status: 'pass' | 'warn' | 'fail' | 'error';
+  ok: boolean;
+  summary: Record<string, string | number | boolean>;
+  findings: SecurityFinding[];
+  durationMs?: number;
+  ranAt?: string;
+  error?: string;
+  note?: string;
+  disclaimer?: string;
+}
+
+export const getSecurityChecks = () =>
+  api.get('/security/checks').then((r) => r.data as {
+    success: boolean; enabled: boolean; levels: string[]; data: SecurityCheckItem[];
+  });
+
+export const runSecurityChecks = (payload: { checks: string[]; level?: string }) =>
+  api.post('/security/run', payload, { timeout: 120000 }).then((r) => r.data as {
+    success: boolean;
+    data?: { ranAt: string; level: string; summary: Record<string, string | number | boolean>; results: SecurityCheckResult[]; disclaimer: string };
+  });
+
 export default api;

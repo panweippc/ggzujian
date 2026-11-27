@@ -29,6 +29,7 @@ import platformOpsRouter from './routes/platform-ops.js';
 import excelRouter from './routes/excel.js';
 import dataExportRouter from './routes/data-export.js';
 import signatureRouter from './routes/signature.js';
+import { createSecurityCheckRouter } from './routes/security-check.js';
 import { createSseRouter } from './routes/sse.js';
 import { sseBus } from './services/sse-bus.js';
 import {
@@ -261,6 +262,8 @@ app.use('/api', dataExportRouter);
 
 // 电子签章（SHA-256 摘要 + HMAC 签名 + 验签 + 撤销）
 app.use('/api', signatureRouter);
+// 前端一键安全自检（管理员专属；生产默认关闭，SECURITY_UI_ENABLED=true 开启）
+app.use('/api', createSecurityCheckRouter({ pool }));
 // 回收站过期自动清除：每小时扫描一次，删除超过保留期的快照及其物理文件
 setInterval(() => {
   purgeExpired(pool).then((n) => {

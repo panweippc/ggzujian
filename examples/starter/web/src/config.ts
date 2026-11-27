@@ -32,6 +32,7 @@ export const LOGIN_MODULES = [
   { name: '平台能力', bg: 'rgba(139,92,246,.14)', icon: ICON('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>', '#7c3aed') },
   { name: 'AI 运维', bg: 'rgba(8,145,178,.15)', icon: ICON('<rect x="4" y="8" width="16" height="12" rx="3"/><path d="M12 4v4M9 14h.01M15 14h.01M9 17h6"/>', '#0891b2') },
   { name: '低代码搭建', bg: 'rgba(219,39,119,.14)', icon: ICON('<path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4z"/><path d="M16 13v8M12 17h8"/>', '#db2777') },
+  { name: '安全自检', bg: 'rgba(100,116,139,.15)', icon: ICON('<path d="M12 3l8 3v6c0 4.4-3.2 7.9-8 9-4.8-1.1-8-4.6-8-9V6l8-3z"/><path d="M9 12l2 2 4-4"/>', '#475569') },
 ];
 
 // ============ 登录页每日寄语（按年内天数取模轮播）============
@@ -71,6 +72,7 @@ export const SIDE_MENUS = [
   { id: 16, name: '平台能力', path: '/platform', icon: 'setting' },
   { id: 17, name: 'AI 运维', path: '/ai-ops', icon: 'monitor' },
   { id: 18, name: '低代码搭建', path: '/low-code', icon: 'palette' },
+  { id: 19, name: '安全自检', path: '/security-check', icon: 'key' },
 ];
 
 // ============ 系统管理 - Tab 配置 ============

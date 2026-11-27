@@ -40,6 +40,35 @@ runs:
       working-directory: ${{ inputs.working-directory }}/server
       run: node scripts/check-env.mjs
 
+    - name: 硬编码密钥扫描（阻断）
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}/server
+      run: node scripts/check-secrets.mjs
+
+    - name: 冗余代码与等保自查（报告，不阻断）
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}/server
+      run: |
+        node scripts/check-code-quality.mjs
+        node scripts/check-compliance.mjs
+
+    - name: 扩展安全巡检（12 项：暴露面/基线/SQL/覆盖率/SBOM/分级/权限/备份/复杂度/依赖/TS/契约）
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}/server
+      run: |
+        node scripts/check-api-exposure.mjs
+        node scripts/check-config-baseline.mjs
+        node scripts/check-sql-safety.mjs
+        node scripts/check-coverage.mjs
+        node scripts/check-sbom.mjs
+        node scripts/check-data-classification.mjs
+        node scripts/check-permission-matrix.mjs
+        node scripts/check-backup-drill.mjs
+        node scripts/check-complexity.mjs
+        node scripts/check-unused-deps.mjs
+        node scripts/check-ts-strict.mjs
+        node scripts/check-api-contract.mjs
+
     - name: 多数据库方言静态门禁
       shell: bash
       working-directory: ${{ inputs.working-directory }}/server

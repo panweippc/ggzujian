@@ -49,7 +49,29 @@ def run(Map cfg = [:]) {
           }
           dir("${projectDir}/server") {
             sh 'node scripts/check-env.mjs'
+            sh 'node scripts/check-secrets.mjs'
+            sh 'node scripts/check-code-quality.mjs'   // 报告项，不阻断
+            sh 'node scripts/check-compliance.mjs'     // 自查项，不阻断
             sh 'node scripts/generate-openapi.mjs --check'
+          }
+        }
+      }
+
+      if (consistencyGate) {
+        stage('Extended Security Gate') {
+          dir("${projectDir}/server") {
+            sh 'node scripts/check-api-exposure.mjs'
+            sh 'node scripts/check-config-baseline.mjs'
+            sh 'node scripts/check-sql-safety.mjs'
+            sh 'node scripts/check-coverage.mjs'
+            sh 'node scripts/check-sbom.mjs'
+            sh 'node scripts/check-data-classification.mjs'
+            sh 'node scripts/check-permission-matrix.mjs'
+            sh 'node scripts/check-backup-drill.mjs'
+            sh 'node scripts/check-complexity.mjs'
+            sh 'node scripts/check-unused-deps.mjs'
+            sh 'node scripts/check-ts-strict.mjs'
+            sh 'node scripts/check-api-contract.mjs'
           }
         }
       }

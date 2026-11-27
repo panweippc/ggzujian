@@ -178,7 +178,10 @@ docker compose -f docker-compose.base.yml -f docker-compose.prod.yml up -d
 | `cd server && node scripts/check-env.mjs` | 扫 `process.env.X` 对照 `.env.example`，检出未声明项与内置变量误报 |
 | `cd server && node scripts/check-compat.mjs --driver postgres` | 业务 SQL 方言兼容扫描（见下节） |
 | `cd server && node scripts/check-audit.mjs --level critical --omit dev --allow-list xlsx` | npm audit 阈值门禁，可豁免已评估漏洞 |
-| `cd server && npm run check:all` | 一次跑齐上面 env + compat + audit 三道门禁 |
+| `cd server && node scripts/check-secrets.mjs` | 硬编码密钥/口令/私钥扫描（高危阻断，`--strict` 连可疑项也阻断） |
+| `cd server && node scripts/check-code-quality.mjs` | 冗余代码审查：重复块/超长函数/死导出/TODO/console.log（`--strict` 阻断） |
+| `cd server && node scripts/check-compliance.mjs` | 等保 2.0 三级技术项自查（`--level 二级` 切基线）；**自查非测评** |
+| `cd server && npm run check:all` | 一次跑齐 env + compat + audit + secrets 四道阻断门禁 |
 
 **生成 / 编排类（按需手动执行）**
 
@@ -193,6 +196,43 @@ docker compose -f docker-compose.base.yml -f docker-compose.prod.yml up -d
 | `cd server && node scripts/generate-demo-data.mjs --table employees --rows 20` | 零依赖演示数据生成（种子可复现，自动跳过 users/审计/敏感表）；`--list` 看可生成表 |
 
 > CRUD 生成器 `--register` 与一致性门禁闭环：生成时自动同步 `SIDE_MENUS` / `LOGIN_MODULES` / `router.ts` / Excel `SCHEMAS`，再由门禁校验无漂移。
+
+> ⚠️ **等保自查边界**：`check-compliance.mjs` 只做技术项**预检自查**，输出 ✓（自动核验通过）/ ✗（缺失）/ ⚠（需人工确认）；管理制度、物理安全、定级备案等不在代码层检测范围，**不构成等保测评结论**，正式测评须由有资质机构出具。密钥扫描与密钥的管理制度是两回事，弱口令仍需在 `.env` 层治理（见 `check-env.mjs`）。
+
+**前端一键安全自检（管理端）**
+
+侧边栏「安全自检」页把密钥扫描、冗余代码审查、等保技术项自查集中到一个界面：管理员可勾选执行或「一键执行全部」，并可切换等保二级/三级基线。结果与 CI 门禁使用**同一脚本、同一口径**（页面展示的是脚本的 `--json` 输出），属于按需自查入口，不替代 CI 阻断。
+
+| 接口 | 作用 |
+|---|---|
+| `GET /api/security/checks` | 列出可用检测项与可选基线（仅管理员） |
+| `POST /api/security/run` | 执行选中项，body：`{ "checks": ["secrets","quality","compliance"], "level": "三级" }` |
+
+安全边界：仅管理员可调用；检测项 id 走固定白名单，脚本路径与参数不可由请求指定；`execFile` 直接启动 Node 子进程、不经过 shell，杜绝命令注入；每用户+IP 限频、全局单并发、单次超时（按检测项分级）、stderr 不回传；每次执行写操作审计。**生产环境默认关闭**，需显式设置 `SECURITY_UI_ENABLED=true` 才启用；`SECURITY_UI_TIMEOUT_MS` / `SECURITY_UI_RATE_MAX` / `SECURITY_UI_RATE_WINDOW_MS` 可调。页面结果与脚本自查一样，不构成等保测评结论。
+
+**15 项检测清单（页面可勾选执行，CI 自动跑）**
+
+| # | 检测项 | 默认口径 |
+|---|---|---|
+| 1 | 硬编码密钥扫描 | 高危阻断 |
+| 2 | 冗余代码审查 | 仅告警 |
+| 3 | 等保合规自查 | 缺失阻断，人工项提示 |
+| 4 | API 暴露面自查 | 公开写接口阻断 |
+| 5 | 配置基线漂移检测 | 实际 `.env` 弱值阻断（CI 无 `.env` 标人工） |
+| 6 | SQL 危险拼接扫描 | 请求对象插值阻断，其余提示 |
+| 7 | 测试覆盖率门禁 | 启发式比例告警；装 provider 后可升级真实覆盖率 |
+| 8 | SBOM 与许可证合规 | GPL/AGPL/SSPL 阻断，支持 `--out` 导出 CycloneDX |
+| 9 | 数据分类分级扫描 | PII 漏登记告警 |
+| 10 | 权限矩阵一致性 | 管理页免 RBAC 阻断 |
+| 11 | 备份可恢复性演练 | 完整性失败阻断；无备份标人工 |
+| 12 | 圈复杂度门禁 | 超阈值 3 倍阻断（历史基线仅提示） |
+| 13 | 未使用依赖扫描 | 静态缺依赖阻断，动态导入提示 |
+| 14 | TypeScript 严格度门禁 | 缺 tsconfig / 大量 any 提示 |
+| 15 | 前后端接口契约校验 | 前端调用路径无后端路由时提示 |
+
+全部脚本零依赖、支持 `--json` / `--strict`，已接入 GitHub Actions 与 Jenkins。前端页面从后端动态读取检测项列表，**新增检测只需在 `security-check.js` 白名单登记并接一行 CI 命令，无需改页面**。`npm run check:extended` 可一次跑齐后 12 项，`npm run check:all` 已包含。
+
+> 底座约定：新增功能优先接入自动化门禁与前端面板，能自动核验的不留人工步骤；确实需要环境/制度配合的项（如真实数据库恢复演练、等保测评）必须显式标注为"人工"，不得静默通过。
 
 ### 数据安全（方案 C）与多数据库兼容（方案 A）
 
